@@ -1,0 +1,49 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi=
+"http://www.w3.org/2001/XMLSchema-instance"
+xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+ 
+	<groupId>de.biomedical-imaging.imagej</groupId>
+	<artifactId>ij_trajectory_classifier</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>jar</packaging>
+	
+	<parent>
+		<groupId>net.imagej</groupId>
+		<artifactId>pom-imagej</artifactId>
+		<version>7.0.0</version>
+		<relativePath />
+	</parent>
+ 
+	<name>Trajectory Classifier</name>
+	<url></url>
+ 	<dependencies>
+		<dependency>
+   	 		<groupId>net.imagej</groupId>
+   	 		<artifactId>ij</artifactId>
+  	 		<version>1.49r</version>
+		</dependency>
+		<dependency>
+   	 		<groupId>de.biomedical_imaging</groupId>
+   	 		<artifactId>traj</artifactId>
+  	 		<version>0.4.0</version>
+		</dependency>
+		<dependency>
+    			<groupId>javax.vecmath</groupId>
+    			<artifactId>vecmath</artifactId>
+    			<version>1.5.2</version>
+		</dependency>
+	</dependencies>
+	<developers>
+		<developer>
+			<id>twagner</id>
+			<name>Thorsten Wagner</name>
+			<email>wagner@biomedical-imaging.de</email>
+			<properties>
+				<active>true</active>
+			</properties>
+		</developer>
+	</developers>
+
+</project>
