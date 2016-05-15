@@ -51,7 +51,7 @@ public class StartRserve {
 	/** shortcut to <code>launchRserve(cmd, "--no-save --slave", "--no-save --slave", false)</code> */
 	public static RConnection c;
 	public static boolean launchRserve(String cmd) { return launchRserve(cmd, "--no-save --slave","--no-save --slave",false); }
-	
+	Process p;
 	/** attempt to start Rserve. Note: parameters are <b>not</b> quoted, so avoid using any quotes in arguments
 	 @param cmd command necessary to start R
 	 @param rargs arguments are are to be passed to R
@@ -106,6 +106,7 @@ public class StartRserve {
 							      "/bin/sh", "-c",
 							      "echo 'library(Rserve);Rserve("+(debug?"TRUE":"FALSE")+",args=\""+rsrvargs+"\")'|"+cmd+" "+rargs
 							      });
+				
 			}
 			// we need to fetch the output - some platforms will die if you don't ...
 			@SuppressWarnings("unused")
@@ -123,6 +124,7 @@ public class StartRserve {
 		int attempts = 5; /* try up to 5 times before giving up. We can be conservative here, because at this point the process execution itself was successful and the start up is usually asynchronous */
 		while (attempts > 0) {
 			try {
+				System.out.println("Establish new RConnection");
 				c = new RConnection();
 				//IJ.log(" c close " + c.close());
 				

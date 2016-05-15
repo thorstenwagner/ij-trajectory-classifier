@@ -45,9 +45,11 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	@Override
 	public void start() {
 	
-		if(!StartRserve.isRserveRunning()){
+		//if(!StartRserve.isRserveRunning()){
 			StartRserve.launchRserve("R");
 			c = StartRserve.c;
+			
+			/*
 		}else{
 			try {
 				c = new RConnection();
@@ -56,6 +58,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 				e.printStackTrace();
 			}
 		}
+		*/
 		try {
 			c.voidEval("library(\"missForest\")");
 			c.voidEval("try(library(\"randomForest\"))");
@@ -80,11 +83,13 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		// TODO Auto-generated method stub
 		try {
 			c.voidEval("stopCluster(cl)");
+			c.shutdown();
+			
 		} catch (RserveException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		c.close();
+		
 	}
 	
 	@Override
@@ -128,9 +133,8 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		 * TO DO: Parallele Datenberechnung
 		 */
 		
-		//Lege für jedes Feature einen Worker an
-		//Füge alle zum pool hinzu
-		ExecutorService pool = Executors.newFixedThreadPool(8);
+		int cores = Runtime.getRuntime().availableProcessors();
+		ExecutorService pool = Executors.newFixedThreadPool(cores*2);
 		System.out.println("Calc features");
 		for(int i = 0; i < tracks.size(); i++){
 			Trajectory t = tracks.get(i);
