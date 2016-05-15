@@ -1,6 +1,11 @@
 package de.biomedical_imaging.ij.trajectory_classifier;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.rosuda.REngine.REXP;
 import org.rosuda.REngine.REXPMismatchException;
@@ -8,6 +13,7 @@ import org.rosuda.REngine.REngineException;
 import org.rosuda.REngine.Rserve.RConnection;
 import org.rosuda.REngine.Rserve.RserveException;
 
+import de.biomedical_imaging.ij.trajectory_classifier.FeatureWorker.EVALTYPE;
 import de.biomedical_imaging.ij.trajectory_classifier.r.StartRserve;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
@@ -27,12 +33,12 @@ import de.biomedical_imaging.traJ.features.StandardDeviationDirectionFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 
-public class RRFClassifier extends AbstractClassifier {
+public class RRFClassifierParallel extends AbstractClassifier {
 	private double fps;
 	public static boolean chatty= false;
 	private RConnection c = null;
 	int cores;
-	public RRFClassifier(double fps) {
+	public RRFClassifierParallel(double fps) {
 		this.fps = fps;
 	}
 	
@@ -110,7 +116,7 @@ public class RRFClassifier extends AbstractClassifier {
 		double[] efficiency = new double[N];
 		double[] kurtosis = new double[N];
 		double[] skewness = new double[N];
-		double[] msdratio = new double[N];
+		//double[] msdratio = new double[N];
 		double[] straightness = new double[N];
 		double[] trappedness = new double[N];
 		double[] gaussianity = new double[N];
@@ -121,80 +127,85 @@ public class RRFClassifier extends AbstractClassifier {
 		/**
 		 * TO DO: Parallele Datenberechnung
 		 */
+		
+		//Lege für jedes Feature einen Worker an
+		//Füge alle zum pool hinzu
+		ExecutorService pool = Executors.newFixedThreadPool(8);
 		System.out.println("Calc features");
-
 		for(int i = 0; i < tracks.size(); i++){
 			Trajectory t = tracks.get(i);
 			int timelagForDirectionDeviationLong = t.size()/20; 
 			
 			ElongationFeature elongF = new ElongationFeature(t);
-			elong[i] = elongF.evaluate()[0];
-			if(chatty)System.out.println("Elong evaluated");
+			pool.submit(new FeatureWorker(elong, i,elongF, EVALTYPE.FIRST));
 			
 			FractalDimensionFeature fdF = new FractalDimensionFeature(t);
-			fd[i] = fdF.evaluate()[0];
-			if(chatty)System.out.println("FD evaluated");
+			pool.submit(new FeatureWorker(fd, i,fdF, EVALTYPE.FIRST));
 			
 			MeanSquaredDisplacmentCurvature msdCurv = new MeanSquaredDisplacmentCurvature(t);
-			msdcurvature[i] = msdCurv.evaluate()[0];
+			pool.submit(new FeatureWorker(msdcurvature, i,msdCurv, EVALTYPE.FIRST));
 			if(chatty)System.out.println("MSDCURV evaluated");
 			
 			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()-1);
-			power[i] = pwf.evaluate()[0];
+			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("POWER evaluated");
 
 			StandardDeviationDirectionFeature sdf = new StandardDeviationDirectionFeature(t, timelagForDirectionDeviationLong);
-			sdDir[i] = sdf.evaluate()[0];
+			pool.submit(new FeatureWorker(sdDir, i,sdf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("SDDIR evaluated");
 
 			SplineCurveDynamicsFeature scdf = new SplineCurveDynamicsFeature(t, numberOfSegmentsSplineFit, 1);
-			double[] res = scdf.evaluate();
-			dratio[i] = res[1]/res[2];
+			pool.submit(new FeatureWorker(dratio, i,scdf, EVALTYPE.RATIO_12));
 			if(chatty)System.out.println("SCDF evaluated");
 
 			ShortTimeLongTimeDiffusioncoefficentRatio stltdf = new ShortTimeLongTimeDiffusioncoefficentRatio(t, numberOfPointsForShortTimeLongTimeRatio);
-			ltStRatio[i] = stltdf.evaluate()[0];
+			pool.submit(new FeatureWorker(ltStRatio, i,stltdf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("STLTDF evaluated");
 			
 			AsymmetryFeature asymf1 = new AsymmetryFeature(t);
-			asym1[i] = asymf1.evaluate()[0];
+			pool.submit(new FeatureWorker(asym1, i,asymf1, EVALTYPE.FIRST));
 			if(chatty)System.out.println("ASYM1 evaluated");
 			
 			Asymmetry2Feature asymf2 = new Asymmetry2Feature(t);
-			asym2[i] = asymf2.evaluate()[0];
+			pool.submit(new FeatureWorker(asym2, i,asymf2, EVALTYPE.FIRST));
 			if(chatty)System.out.println("ASYMf2 evaluated");
 			
 			EfficiencyFeature eff = new EfficiencyFeature(t);
-			efficiency[i] = eff.evaluate()[0];
+			pool.submit(new FeatureWorker(efficiency, i,eff, EVALTYPE.FIRST));
 			if(chatty)System.out.println("EFF evaluated");
 			
 			KurtosisFeature kurtf = new KurtosisFeature(t);
-			kurtosis[i] = kurtf.evaluate()[0];
+			pool.submit(new FeatureWorker(kurtosis, i,kurtf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("KURT evaluated");
 			
 			SkewnessFeature skew = new SkewnessFeature(t);
-			skewness[i] = skew.evaluate()[0];
+			pool.submit(new FeatureWorker(skewness, i,skew, EVALTYPE.FIRST));
 			if(chatty)System.out.println("SKEW evaluated");
 
-			SplineCurveDynamicsMSDRatioFeature msdr = new SplineCurveDynamicsMSDRatioFeature(t, 1);
-			msdratio[i] = msdr.evaluate()[0];
-			if(chatty)System.out.println("MSDR evaluated");
+			//SplineCurveDynamicsMSDRatioFeature msdr = new SplineCurveDynamicsMSDRatioFeature(t, 1);
+			//pool.submit(new FeatureWorker(msdratio, i,msdr, EVALTYPE.FIRST));
+			//if(chatty)System.out.println("MSDR evaluated");
 			
 			StraightnessFeature straight = new StraightnessFeature(t);
-			straightness[i] = straight.evaluate()[0];
+			pool.submit(new FeatureWorker(straightness, i,straight, EVALTYPE.FIRST));
 			if(chatty)System.out.println("STRAIGHT evaluated");
 			
 			TrappedProbabilityFeature trappf = new TrappedProbabilityFeature(t, 1/fps);
-			trappedness[i] = trappf.evaluate()[0];
+			pool.submit(new FeatureWorker(trappedness, i,trappf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("TRAPP evaluated");
 
 			GaussianityFeauture gaussf = new GaussianityFeauture(t, 1);
-			gaussianity[i] = gaussf.evaluate()[0];
+			pool.submit(new FeatureWorker(gaussianity, i,gaussf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("GAUSS evaluated");
 		}
 		
+		pool.shutdown();
+		try {
+			pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+			} catch (InterruptedException e) {
+			  e.printStackTrace();
+			}
 		System.out.println("Calc features finished");
-
 		/*
 		 * Classify
 		 */
@@ -216,14 +227,14 @@ public class RRFClassifier extends AbstractClassifier {
 			c.assign("efficiency", efficiency);
 			c.assign("kurtosis",kurtosis);
 			c.assign("skewness", skewness);
-			c.assign("msdratio", msdratio);
+			//c.assign("msdratio", msdratio);
 			c.assign("straightness", straightness);
 			c.assign("trappedness", trappedness);
 			c.assign("gaussianity", gaussianity);
 			c.voidEval("data<-data.frame(ELONG=elong,FD=fd,MSD.C=msdcurvature,"
 					+ "POWER=power,SD.DIR=sdDir,SPLINE.RATIO=D.ratio,LTST.RATIO=LtStRatio,"
 					+ "ASYM1=asymmetry1,ASYM2=asymmetry2,EFFICENCY=efficiency, KURT=kurtosis,"
-					+ "SKEW=skewness,MSD.R=msdratio,STRAIGHTNESS=straightness, "
+					+ "SKEW=skewness,STRAIGHTNESS=straightness, "
 					+ "TRAPPED=trappedness,GAUSS=gaussianity)");
 			
 		   

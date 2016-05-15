@@ -5,45 +5,42 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.PriorityQueue;
 import java.util.ArrayList;
 
 import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.knowm.xchart.Chart;
-import org.knowm.xchart.QuickChart;
 import org.knowm.xchart.Series;
 import org.knowm.xchart.SeriesMarker;
 import org.knowm.xchart.SwingWrapper;
 
-import sun.tools.tree.PreIncExpression;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.simulation.ActiveTransportSimulator;
 import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionWMSimulation;
 import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
-import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.FreeDiffusionSimulator;
 
 public class TraJClassifier_Debug {
 
 	public static void main(String[] args) {
-		CentralRandomNumberGenerator.getInstance().setSeed(6);
+		CentralRandomNumberGenerator.getInstance().setSeed(7);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
 		double[] driftspeed = {0, 0.27,0.8,2.4}; // µm/s
 		double angleVelocity = Math.PI/4.0; //rad/s
+		int simtracklength = 500;
+		FreeDiffusionSimulator freesim = new FreeDiffusionSimulator(diffusioncoefficient, 1.0/30, 2, simtracklength);
 		
-		FreeDiffusionSimulator freesim = new FreeDiffusionSimulator(diffusioncoefficient, 1.0/30, 2, 500);
+		ActiveTransportSimulator actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, 1.0/30, 2, simtracklength);
 		
-		ActiveTransportSimulator actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, 1.0/30, 2, 500);
-		
-		AnomalousDiffusionWMSimulation anomsim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, 1.0/30, 2, 500, 0.5);
+		AnomalousDiffusionWMSimulation anomsim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, 1.0/30, 2, simtracklength, 0.5);
 		
 		ArrayList<Trajectory> tracks = new ArrayList<Trajectory>();
 		for(int i = 0; i < 100; i++){
 			tracks.add(anomsim.generateTrajectory());
 		}
-		RRFClassifier pred = new RRFClassifier(1.0/30);
+		AbstractClassifier pred = new RRFClassifierParallel(1.0/30);
+		pred.start();
 		String[] res = null;
 		
 		//pred.classify(tracks);
@@ -53,33 +50,46 @@ public class TraJClassifier_Debug {
 		
 		int windowLength = 100;
 		ArrayList<String> types = new ArrayList<String>();
-	
+		String[] trueclasses = new String[3001];
+		int c = 0;
 			Trajectory t1 = TrajectoryUtil.concactTrajectorie(anomsim.generateTrajectory(), actsim.generateTrajectory());
+			
+			for(int i = 0; i < simtracklength+1; i++){trueclasses[c]="SUB"; c++;}
+			for(int i = 0; i < simtracklength; i++){trueclasses[c]="DIRECTED"; c++;}
 			Trajectory t2 = TrajectoryUtil.concactTrajectorie(t1, anomsim.generateTrajectory());
+			for(int i = 0; i < simtracklength; i++){trueclasses[c]="SUB"; c++;}
 			Trajectory t3 = TrajectoryUtil.concactTrajectorie(t2, actsim.generateTrajectory());
+			for(int i = 0; i < simtracklength; i++){trueclasses[c]="DIRECTED"; c++;}
 			Trajectory t4 = TrajectoryUtil.concactTrajectorie(t3, freesim.generateTrajectory());
-			actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, 1.0/30, 2, 500);
-			freesim = new FreeDiffusionSimulator(diffusioncoefficient, 1.0/30, 2, 500);
+			for(int i = 0; i < simtracklength; i++){trueclasses[c]="FREE"; c++;}
+			actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, 1.0/30, 2, simtracklength);
+			freesim = new FreeDiffusionSimulator(diffusioncoefficient, 1.0/30, 2, simtracklength);
 			
 			Trajectory t5 = TrajectoryUtil.combineTrajectory(freesim.generateTrajectory(), actsim.generateTrajectory());
 	
-	
+		
 			Trajectory t6 = TrajectoryUtil.concactTrajectorie(t4, t5);
+			for(int i = 0; i < simtracklength; i++){trueclasses[c]="DIRECTED"; c++;}
+			
 			t6.showTrajectory();
 			// SUB, ACTIVE, SUB, ACTIVE, FREE, FLOW
-			pred = new RRFClassifier(1.0/30);
 			
 			
+			long startTime = System.currentTimeMillis();
 			System.out.println("Size Track: " + t6.size());
-			res = windowedClassification(t6, pred, 80);
-			res = movingMode(res, 40);
+			res = windowedClassification(t6, pred, 30);
+			res = movingMode(res, 80); //vorher 40
 			System.out.println("Res size " +  res.length);
+			System.out.println("trueclasses size " +  trueclasses.length);
 			printTypes(res);
 			showTrack(t6,res);
+			showTrack(t6,trueclasses);
 			
 			//res = movingMode(resList, uniqueTypes, 10);
+			pred.stop();
+			long estimatedTime = System.currentTimeMillis() - startTime;
 			
-			System.out.println("Complete");
+			System.out.println("Complete: "+ estimatedTime);
 	}
 	
 	public static String[] windowedClassification(Trajectory t, AbstractClassifier c, int n){
@@ -143,7 +153,7 @@ public class TraJClassifier_Debug {
 		Color[] colors = new Color[]
 				{
 				    Color.RED, Color.BLUE, Color.YELLOW, Color.GREEN,
-				    Color.BLACK, Color.PINK, Color.ORANGE
+				    Color.BLACK, Color.PINK, Color.ORANGE, Color.MAGENTA
 				};
 		HashSet<String> uniqueClasses = new HashSet<String>();
 		uniqueClasses.addAll(classes);

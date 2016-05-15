@@ -63,7 +63,8 @@ public class StartRserve {
 			//RConnection c = new RConnection();
 			//IJ.log("Rserve is already running.");
 			//c.close();
-			if(c != null || c.isConnected()){
+			if(c != null && c.isConnected()){
+				
 				return true;
 			}
 		} catch (Exception e2) {
@@ -175,7 +176,6 @@ public class StartRserve {
 	public static boolean isRserveRunning() {
 		try {
 			RConnection c = new RConnection();
-			System.out.println("Rserve is running.");
 			c.close();
 			return true;
 		} catch (Exception e) {

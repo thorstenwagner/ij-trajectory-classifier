@@ -26,19 +26,11 @@ public class TrackMateImporter {
 		ArrayList<Track> trajectories = new ArrayList<Track>();
 		
 		/*
-		 * 1. Choose xml path
-		 */
-		
-		OpenDialog open = new OpenDialog("Choose the TrackMate xml file");
-		String filepath = open.getPath();
-		
-		
-		/*
 		 * 2. Load xml file
 		 */
 		Document doc = null;
 		try {
-			File fXmlFile = new File(filepath);
+			File fXmlFile = new File(path);
 			DocumentBuilderFactory dbFactory = DocumentBuilderFactory
 					.newInstance();
 			DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
