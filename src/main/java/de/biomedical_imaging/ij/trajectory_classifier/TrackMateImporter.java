@@ -1,8 +1,6 @@
 package de.biomedical_imaging.ij.trajectory_classifier;
 
 import ij.IJ;
-import ij.io.OpenDialog;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,7 +15,6 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import de.biomedical_imaging.traJ.Trajectory;
 
 public class TrackMateImporter {
 	
