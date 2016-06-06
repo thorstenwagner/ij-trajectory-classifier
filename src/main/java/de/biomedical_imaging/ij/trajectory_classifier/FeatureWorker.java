@@ -1,8 +1,5 @@
 package de.biomedical_imaging.ij.trajectory_classifier;
 
-import java.util.ArrayList;
-
-import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
 
 public class FeatureWorker extends Thread {
