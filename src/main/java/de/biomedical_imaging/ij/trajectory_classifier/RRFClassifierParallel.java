@@ -27,7 +27,6 @@ import de.biomedical_imaging.traJ.features.PowerLawFeature;
 import de.biomedical_imaging.traJ.features.ShortTimeLongTimeDiffusioncoefficentRatio;
 import de.biomedical_imaging.traJ.features.SkewnessFeature;
 import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
-import de.biomedical_imaging.traJ.features.StandardDeviationDirectionFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 
@@ -35,24 +34,20 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	public static boolean chatty= false;
 	private RConnection c = null;
 	int cores;
+	private String pathToModel;
+	
+	public RRFClassifierParallel(String pathToModel) {
+		this.pathToModel = pathToModel;
+	}
 	
 	@Override
 	public void start() {
-	
-		//if(!StartRserve.isRserveRunning()){
-			StartRserve.launchRserve("R");
-			c = StartRserve.c;
-			
-			/*
-		}else{
-			try {
-				c = new RConnection();
-			} catch (RserveException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-		}
-		*/
+		
+		
+
+		StartRserve.launchRserve("R");
+		c = StartRserve.c;
+
 		try {
 			c.voidEval("library(\"missForest\")");
 			c.voidEval("try(library(\"randomForest\"))");
@@ -61,15 +56,15 @@ public class RRFClassifierParallel extends AbstractClassifier {
 			c.voidEval("library(\"doParallel\")");
 			cores = Runtime.getRuntime().availableProcessors();
 			c.voidEval("registerDoParallel(cores="+cores+")");
-			c.voidEval("load(\"/home/thorsten/randomForestModel.RData\")");
-			
+			c.voidEval("load(\""+pathToModel+"\")");
+
 			c.voidEval("cl<-makeCluster("+cores+")");
 			c.voidEval("registerDoSNOW(cl)");
 		} catch (RserveException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 	}
 
 	@Override
@@ -132,8 +127,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		//selectedFeatures=c("TYPES","FD","TRAPPED", "EFFICENCY","POWER","SD.DIR","SPLINE.RATIO")
 		for(int i = 0; i < tracks.size(); i++){
 			Trajectory t = tracks.get(i);
-			int timelagForDirectionDeviationLong = t.size()/20; 
-			
+
 			ElongationFeature elongF = new ElongationFeature(t);
 			pool.submit(new FeatureWorker(elong, i,elongF, EVALTYPE.FIRST));
 			
@@ -144,7 +138,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 			pool.submit(new FeatureWorker(msdcurvature, i,msdCurv, EVALTYPE.FIRST));
 			//if(chatty)System.out.println("MSDCURV evaluated");
 			
-			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()-1);
+			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
 			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("POWER evaluated");
 
@@ -153,7 +147,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		//	if(chatty)System.out.println("SDDIR evaluated");
 
 			SplineCurveDynamicsFeature scdf = new SplineCurveDynamicsFeature(t, numberOfSegmentsSplineFit, 1);
-			pool.submit(new FeatureWorker(dratio, i,scdf, EVALTYPE.RATIO_12));
+			pool.submit(new FeatureWorker(dratio, i,scdf, EVALTYPE.RATIO_01));
 			if(chatty)System.out.println("SCDF evaluated");
 
 			
@@ -261,7 +255,6 @@ public class RRFClassifierParallel extends AbstractClassifier {
 					+ ".combine=c,.packages=c(\"randomForest\")) %dopar% {"
 							+ "as.numeric(predict(model,newdata=data[split_testing==i,]))}");
 			c.voidEval("lvl<-levels(model$y)");
-			//c.voidEval("features.predict <- predict(model,data)");
 			res = c.eval("lvl[pred]").asStrings();
 		} catch (RserveException e) {
 			System.out.println("Message: " + e.getMessage());
@@ -294,6 +287,12 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		}
 		System.out.println();
 		
+	}
+
+	@Override
+	public double[] getConfindence() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	

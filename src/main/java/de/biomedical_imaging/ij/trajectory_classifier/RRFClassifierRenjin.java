@@ -10,6 +10,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 import org.renjin.parser.ParseException;
+import org.renjin.sexp.DoubleVector;
 import org.renjin.sexp.StringVector;
 
 import de.biomedical_imaging.ij.trajectory_classifier.FeatureWorker.EVALTYPE;
@@ -35,10 +36,19 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 
 	private ScriptEngine engine = null;
 	private boolean chatty = false;
+	private String pathToModel;
+	private double[] confindence;
+	
+	public RRFClassifierRenjin(String pathToModel) {
+		this.pathToModel = pathToModel;
+	}
+	
 	@Override
 	public String classify(Trajectory t) {
-		// TODO Auto-generated method stub
-		return null;
+		ArrayList<Trajectory> tracks = new ArrayList<Trajectory>();
+		tracks.add(t);
+		
+		return classify(tracks)[0];
 	}
 
 	@Override
@@ -49,7 +59,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 	    try {
 			engine.eval("library(randomForest)");
 			engine.eval("library(plyr)");
-			engine.eval("load(\"/home/thorsten/randomForestModel.RData\")");
+			engine.eval("load(\""+pathToModel+"\")");
 		} catch (ScriptException e) {
 			e.printStackTrace();
 		}
@@ -75,6 +85,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		String[] result = new String[N];
 		double[] elong = new double[N];
 		double[] fd = new double[N];
+		int[] lengths = new int[N];
 		double[] msdcurvature = new double[N];
 		double[] power = new double[N];
 		double[] sdDir = new double[N]; 
@@ -100,6 +111,8 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		
 		for(int i = 0; i < tracks.size(); i++){
 			Trajectory t = tracks.get(i);
+			
+			lengths[i] = t.size();
 
 			ElongationFeature elongF = new ElongationFeature(t);
 			pool.submit(new FeatureWorker(elong, i,elongF, EVALTYPE.FIRST));
@@ -111,7 +124,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			pool.submit(new FeatureWorker(msdcurvature, i,msdCurv, EVALTYPE.FIRST));
 			//if(chatty)System.out.println("MSDCURV evaluated");
 			
-			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()-1);
+			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
 			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("POWER evaluated");
 
@@ -120,7 +133,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		//	if(chatty)System.out.println("SDDIR evaluated");
 
 			SplineCurveDynamicsFeature scdf = new SplineCurveDynamicsFeature(t, numberOfSegmentsSplineFit, 1);
-			pool.submit(new FeatureWorker(dratio, i,scdf, EVALTYPE.RATIO_12));
+			pool.submit(new FeatureWorker(dratio, i,scdf, EVALTYPE.RATIO_01));
 			if(chatty)System.out.println("SCDF evaluated");
 
 			
@@ -153,7 +166,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			pool.submit(new FeatureWorker(skewness, i,skew, EVALTYPE.FIRST));
 		//	if(chatty)System.out.println("SKEW evaluated");
 
-			MSDRatioFeature msdr = new MSDRatioFeature(t, 1,10);
+			MSDRatioFeature msdr = new MSDRatioFeature(t, 1,5);
 			pool.submit(new FeatureWorker(msdratio, i,msdr, EVALTYPE.FIRST));
 			//if(chatty)System.out.println("MSDR evaluated");
 			
@@ -181,6 +194,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			
 			engine.put("elong", elong);
 			engine.put("fd",fd);
+			engine.put("lengths",lengths);
 			engine.put("msdcurvature",msdcurvature);
 			engine.put("power", power);
 		//	engine.put("sdDir", sdDir);
@@ -197,17 +211,24 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			engine.put("trappedness", trappedness);
 			engine.put("gaussianity", gaussianity);
 			
-			engine.eval("data<-data.frame(ELONG=elong,FD=fd,MSD.C=msdcurvature,"
+			engine.eval("data<-data.frame(ELONG=elong,LENGTHS=lengths,FD=fd,MSD.C=msdcurvature,"
 					+ "POWER=power,SPLINE.RATIO=D.ratio,LTST.RATIO=LtStRatio,"
 					+ "ASYM1=asymmetry1,MSD.R=msdratio,ASYM2=asymmetry2,ASYM3=asymmetry3,EFFICENCY=efficiency, KURT=kurtosis,"
 					+ "SKEW=skewness,STRAIGHTNESS=straightness, "
 					+ "TRAPPED=trappedness,GAUSS=gaussianity)");
-			engine.eval("features.predict <- predict(model,data)");
-			engine.eval("lvl <- levels(model$y)");
+			engine.eval("features.predict <- predict(model,data,type=\"prob\")");
+			engine.eval("fprob<-features.predict");
+			engine.eval("probs <- as.vector(apply(fprob[1:nrow(fprob),],1,max))");
+			engine.eval("indexmax <- as.vector(apply(fprob[1:nrow(fprob),],1,which.max))");
+			engine.eval("mynames <- colnames(fprob)");
+			engine.eval("maxclass <- mynames[indexmax]");
+			//engine.eval("lvl <- levels(model$y)");
 			
-			StringVector res = (StringVector)engine.eval("lvl[features.predict]");
-			
+			//StringVector res = (StringVector)engine.eval("lvl[features.predict]");
+			StringVector res = (StringVector)engine.eval("maxclass");
 			result = res.toArray();
+			DoubleVector confi = (DoubleVector)engine.eval("probs");
+			confindence = confi.toDoubleArray();
 		}
 		catch (ParseException e) {
 		    System.out.println("R script parse error: " + e.getMessage());
@@ -217,6 +238,12 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			e.printStackTrace();
 		}
 		return result;
+	}
+
+	@Override
+	public double[] getConfindence() {
+		// TODO Auto-generated method stub
+		return confindence;
 	}
 
 }

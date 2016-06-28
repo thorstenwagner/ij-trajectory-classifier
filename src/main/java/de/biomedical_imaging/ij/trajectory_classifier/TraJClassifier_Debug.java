@@ -1,5 +1,7 @@
 package de.biomedical_imaging.ij.trajectory_classifier;
 
+import ij.measure.CurveFitter;
+
 import java.awt.Color;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -7,6 +9,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
 
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.math.stat.descriptive.moment.Mean;
+import org.apache.commons.math.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math.stat.descriptive.rank.Max;
+import org.apache.commons.math.stat.descriptive.rank.Min;
 import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.knowm.xchart.Chart;
@@ -16,41 +23,48 @@ import org.knowm.xchart.SwingWrapper;
 
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
+import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.CovarianceDiffusionCoefficientEstimator;
+import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
+import de.biomedical_imaging.traJ.features.ConfinedDiffusionParametersFeature;
+import de.biomedical_imaging.traJ.features.MaxDistanceBetweenTwoPositionsFeature;
+import de.biomedical_imaging.traJ.features.MeanSquaredDisplacmentFeature;
+import de.biomedical_imaging.traJ.features.PowerLawFeature;
+import de.biomedical_imaging.traJ.simulation.AbstractSimulator;
 import de.biomedical_imaging.traJ.simulation.ActiveTransportSimulator;
 import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionWMSimulation;
 import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
+import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.FreeDiffusionSimulator;
+import de.biomedical_imaging.traJ.simulation.SimulationUtil;
+import de.biomedical_imaging.traj.math.ConfinedDiffusionMSDCurveFit.FitMethod;
 
 public class TraJClassifier_Debug {
 
 	public static void main(String[] args) {
-		CentralRandomNumberGenerator.getInstance().setSeed(7);
+		CentralRandomNumberGenerator.getInstance().setSeed(8);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
-		double[] driftspeed = {0, 0.27,0.8,2.4}; // µm/s
-		double angleVelocity = Math.PI/4.0; //rad/s
+		double timelag = 1.0/30;
+		double[] driftspeed = {0, 0.27,1,2.4}; // µm/s
+		double angleVelocity = Math.PI/4; //rad/s
 		int simtracklength = 500;
-		FreeDiffusionSimulator freesim = new FreeDiffusionSimulator(diffusioncoefficient, 1.0/30, 2, simtracklength);
+		int diffusionToNoiseRatio = 2;
+		double sigmaPosNoise = Math.sqrt(2*diffusioncoefficient*timelag)/diffusionToNoiseRatio; 
 		
-		ActiveTransportSimulator actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, 1.0/30, 2, simtracklength);
+		/*
+		FreeDiffusionSimulator freesim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
 		
-		AnomalousDiffusionWMSimulation anomsim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, 1.0/30, 2, simtracklength, 0.5);
+		ActiveTransportSimulator actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, timelag, 2, simtracklength);
+		
+		AnomalousDiffusionWMSimulation anomsim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, simtracklength, 0.5);
 		
 		ArrayList<Trajectory> tracks = new ArrayList<Trajectory>();
 		for(int i = 0; i < 100; i++){
 			tracks.add(anomsim.generateTrajectory());
 		}
-		AbstractClassifier pred = new RRFClassifierParallel(1.0/30);
-		pred.start();
+		
 		String[] res = null;
-		
-		//pred.classify(tracks);
-		//for(int i = 0; i < res.length; i++){
-		//	System.out.println("Res: " + res[i]);
-		//}
-		
-		int windowLength = 100;
-		ArrayList<String> types = new ArrayList<String>();
-		String[] trueclasses = new String[3001];
+
+		String[] trueclasses = new String[6*simtracklength+1];
 		int c = 0;
 			Trajectory t1 = TrajectoryUtil.concactTrajectorie(anomsim.generateTrajectory(), actsim.generateTrajectory());
 			
@@ -63,33 +77,103 @@ public class TraJClassifier_Debug {
 			Trajectory t4 = TrajectoryUtil.concactTrajectorie(t3, freesim.generateTrajectory());
 			for(int i = 0; i < simtracklength; i++){trueclasses[c]="FREE"; c++;}
 			actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, 1.0/30, 2, simtracklength);
-			freesim = new FreeDiffusionSimulator(diffusioncoefficient, 1.0/30, 2, simtracklength);
+			freesim = new FreeDiffusionSimulator(diffusioncoefficient*0.5, 1.0/30, 2, simtracklength);
 			
 			Trajectory t5 = TrajectoryUtil.combineTrajectory(freesim.generateTrajectory(), actsim.generateTrajectory());
 	
-		
 			Trajectory t6 = TrajectoryUtil.concactTrajectorie(t4, t5);
-			for(int i = 0; i < simtracklength; i++){trueclasses[c]="DIRECTED"; c++;}
 			
-			t6.showTrajectory();
+			t6 = SimulationUtil.addPositionNoise(t6, sigmaPosNoise);
+			for(int i = 0; i < simtracklength; i++){trueclasses[c]="DIRECTED"; c++;}
+	
 			// SUB, ACTIVE, SUB, ACTIVE, FREE, FLOW
 			
 			
-			long startTime = System.currentTimeMillis();
+			
 			System.out.println("Size Track: " + t6.size());
-			res = windowedClassification(t6, pred, 30);
-			res = movingMode(res, 80); //vorher 40
+			
+			WeightedWindowedClassificationProcess wp = new WeightedWindowedClassificationProcess();
+			AbstractClassifier pred = new RRFClassifierRenjin("/home/thorsten/randomForestModel.RData");
+			pred.start();
+			res = wp.windowedClassification(t6, pred, 30); 
 			System.out.println("Res size " +  res.length);
 			System.out.println("trueclasses size " +  trueclasses.length);
 			printTypes(res);
 			showTrack(t6,res);
 			showTrack(t6,trueclasses);
-			
-			//res = movingMode(resList, uniqueTypes, 10);
 			pred.stop();
-			long estimatedTime = System.currentTimeMillis() - startTime;
-			
-			System.out.println("Complete: "+ estimatedTime);
+			System.out.println("Complete");
+			*/
+		
+		
+		ExportImportTools io = new ExportImportTools();
+		ArrayList<Trajectory> tracks = io.importTrajectoryDataFromCSV("/home/thorsten/myclassifiedtracks.csv");
+		int id = 47364;
+		Trajectory t = null;
+		ConfinedDiffusionSimulator consim = new ConfinedDiffusionSimulator(diffusioncoefficient, timelag, 0.5, 2, 500);
+		t = consim.generateTrajectory();
+		/*
+		for(int i = 0; i < tracks.size(); i++){
+			if(tracks.get(i).getID()==id){
+				t = tracks.get(i);
+				break;
+			}
+		}
+		
+		*/
+		System.out.println("Size: " + t.size());
+		t.showTrajectory();
+		RegressionDiffusionCoefficientEstimator.plotMSDLine(t, 1, t.size()/5);
+		MaxDistanceBetweenTwoPositionsFeature maxdist = new MaxDistanceBetweenTwoPositionsFeature(t);
+		RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1/timelag, 1, 2);
+		
+		CovarianceDiffusionCoefficientEstimator covest = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
+		
+		System.out.println("D (REG): " + regest.evaluate()[0]);
+		System.out.println("D (COV): " + covest.evaluate()[0]);
+		ConfinedDiffusionParametersFeature conv = new ConfinedDiffusionParametersFeature(t, 1/timelag,covest,FitMethod.SIMPLEX);
+		double[] convres = conv.evaluate();
+		System.out.println("R: " + Math.sqrt(convres[0])/Math.sqrt(Math.PI));//+ "A1: " + conv.evaluate()[1] + " A2: " + conv.evaluate()[2]);
+		System.out.println("D" + convres[1]);
+		System.out.println("Max. Dist: " + maxdist.evaluate()[0]);
+		
+		
+	//	Trajectory t = consim.generateTrajectory();
+	
+	}
+	
+
+	
+	
+	public static double[] evaluate(Trajectory t, double timelag) {
+		MeanSquaredDisplacmentFeature msd = new MeanSquaredDisplacmentFeature(t, 1);
+		msd.setOverlap(false);
+
+		ArrayList<Double> xDataList = new ArrayList<Double>();
+		ArrayList<Double> yDataList = new ArrayList<Double>();
+		for(int i = 1; i < t.size(); i++){
+			msd.setTimelag(i);
+			double[] res = msd.evaluate();
+			double msdvalue = res[0];
+			int N = (int)res[2];
+			for(int j = 0; j < N; j++){
+				xDataList.add((double) i*timelag);
+				yDataList.add(msdvalue);
+			}
+		}
+		double[] xData = ArrayUtils.toPrimitive(xDataList.toArray(new Double[0]));
+		double[] yData = ArrayUtils.toPrimitive(yDataList.toArray(new Double[0]));
+		CurveFitter fitter = new CurveFitter(xData, yData);
+		MaxDistanceBetweenTwoPositionsFeature maxdist = new MaxDistanceBetweenTwoPositionsFeature(t);
+		RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1/timelag, 5, 5);
+		double estrad = maxdist.evaluate()[0];
+		double estDC = regest.evaluate()[0];
+		double[] initialParams = {estrad*estrad};//,regest.evaluate()[0]};
+		//fitter.doCustomFit("y=a*(1-b*exp(-4*c*"+estDC+"*x/a))", initialParams, false);
+		fitter.doCustomFit("y=a*(1-exp(-4*"+estDC+"*x/a))", initialParams, false);
+		double[] params = fitter.getParams();
+		double[] res = {params[0]};//params[1],params[2],fitter.getFitGoodness()};
+		return res;
 	}
 	
 	public static String[] windowedClassification(Trajectory t, AbstractClassifier c, int n){
@@ -260,30 +344,6 @@ public class TraJClassifier_Debug {
 		return medTypes;	
 	}
 	
-	public static String[] movingMedian(ArrayList<String> types, HashSet<String> uniqueTypes, int windowsize){
-		HashMap<String, Integer> mapTypeToInt = new HashMap<String, Integer>();
-		HashMap<Integer, String> mapIntToType = new HashMap<Integer, String>();
-		Iterator<String> it = uniqueTypes.iterator();
-		int key = 0;
-		while(it.hasNext()){
-			String type = it.next();
-			mapTypeToInt.put(type, key);
-			mapIntToType.put(key, type);
-			key++;
-		}
-		Median med = new Median();
-		
-		String[] medTypes = new String[(types.size()-windowsize)];
-		for(int i = 0; i < (types.size()-windowsize);i++){
-			List<String> sub = types.subList(i, i+windowsize-1);
-			double[] values = new double[sub.size()];
-			for(int j = 0; j < sub.size(); j++){
-				values[j] = mapTypeToInt.get(sub.get(j));
-			}
-			
-			medTypes[i] = mapIntToType.get(((int)med.evaluate(values)));
-		}
-		return medTypes;	
-	}
+	
 
 }

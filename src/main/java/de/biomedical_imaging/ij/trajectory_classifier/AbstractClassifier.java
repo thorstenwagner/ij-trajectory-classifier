@@ -13,4 +13,6 @@ public abstract class AbstractClassifier {
 	public abstract void stop();
 
 	public abstract String[] classify(ArrayList<Trajectory> t);
+	
+	public abstract double[] getConfindence();
 }

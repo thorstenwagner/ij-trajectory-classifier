@@ -1,6 +1,7 @@
 package de.biomedical_imaging.ij.trajectory_classifier;
 
 import ij.IJ;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -15,13 +16,15 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import de.biomedical_imaging.traJ.Trajectory;
+
 
 public class TrackMateImporter {
 	
-	public ArrayList<Track> importTrackMateXML(String path){
+	public ArrayList<Trajectory> importTrackMateXML(String path){
 		
-		ArrayList<Track> trajectories = new ArrayList<Track>();
-		
+		ArrayList<Trajectory> trajectories = new ArrayList<Trajectory>();
+		Trajectory.restIDCounter();
 		/*
 		 * 2. Load xml file
 		 */
@@ -49,9 +52,9 @@ public class TrackMateImporter {
 		 */
 	
 		NodeList nTracks = doc.getElementsByTagName("particle");
-
+		
 		for (int i = 0; i < nTracks.getLength(); i++) {
-			Track t = new Track(2);
+			Trajectory t = new Trajectory(2);
 			Node track = nTracks.item(i);
 			boolean firstPosition = true;
 			NodeList nSteps = track.getChildNodes();
