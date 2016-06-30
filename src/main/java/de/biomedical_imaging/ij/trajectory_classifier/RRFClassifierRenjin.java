@@ -15,6 +15,7 @@ import org.renjin.sexp.StringVector;
 
 import de.biomedical_imaging.ij.trajectory_classifier.FeatureWorker.EVALTYPE;
 import de.biomedical_imaging.traJ.Trajectory;
+import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
 import de.biomedical_imaging.traJ.features.AsymmetryFeature;
@@ -31,6 +32,7 @@ import de.biomedical_imaging.traJ.features.SkewnessFeature;
 import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
+import de.biomedical_imaging.traj.math.PowerLawCurveFit.FitMethod;
 
 public class RRFClassifierRenjin extends AbstractClassifier  {
 
@@ -122,11 +124,10 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			
 			MeanSquaredDisplacmentCurvature msdCurv = new MeanSquaredDisplacmentCurvature(t);
 			pool.submit(new FeatureWorker(msdcurvature, i,msdCurv, EVALTYPE.FIRST));
-			//if(chatty)System.out.println("MSDCURV evaluated");
 			
-			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
+			RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1.0/TraJClassifier_.getInstance().getTimelag(), 1, 3);
+			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3, FitMethod.SIMPLEX,0.5,regest.evaluate()[0]);
 			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
-			if(chatty)System.out.println("POWER evaluated");
 
 		//	StandardDeviationDirectionFeature sdf = new StandardDeviationDirectionFeature(t, timelagForDirectionDeviationLong);
 		//	pool.submit(new FeatureWorker(sdDir, i,sdf, EVALTYPE.FIRST));
@@ -134,53 +135,40 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 
 			SplineCurveDynamicsFeature scdf = new SplineCurveDynamicsFeature(t, numberOfSegmentsSplineFit, 1);
 			pool.submit(new FeatureWorker(dratio, i,scdf, EVALTYPE.RATIO_01));
-			if(chatty)System.out.println("SCDF evaluated");
-
 			
 			
 			AsymmetryFeature asymf1 = new AsymmetryFeature(t);
 			pool.submit(new FeatureWorker(asym1, i,asymf1, EVALTYPE.FIRST));
-		//	if(chatty)System.out.println("ASYM1 evaluated");
 			
 			Asymmetry2Feature asymf2 = new Asymmetry2Feature(t);
 			pool.submit(new FeatureWorker(asym2, i,asymf2, EVALTYPE.FIRST));
-			if(chatty)System.out.println("ASYMf2 evaluated");
 			
 			Asymmetry3Feature asymf3 = new Asymmetry3Feature(t);
 			pool.submit(new FeatureWorker(asym3, i,asymf3, EVALTYPE.FIRST));
-			if(chatty)System.out.println("ASYMf3 evaluated");
 			
 			EfficiencyFeature eff = new EfficiencyFeature(t);
 			pool.submit(new FeatureWorker(efficiency, i,eff, EVALTYPE.FIRST));
-			if(chatty)System.out.println("EFF evaluated");
 			
 			ShortTimeLongTimeDiffusioncoefficentRatio stltdf = new ShortTimeLongTimeDiffusioncoefficentRatio(t, numberOfPointsForShortTimeLongTimeRatio);
 			pool.submit(new FeatureWorker(ltStRatio, i,stltdf, EVALTYPE.FIRST));
-			if(chatty)System.out.println("STLTDF evaluated");
 			
 			KurtosisFeature kurtf = new KurtosisFeature(t);
 			pool.submit(new FeatureWorker(kurtosis, i,kurtf, EVALTYPE.FIRST));
-		//	if(chatty)System.out.println("KURT evaluated");
 			
 			SkewnessFeature skew = new SkewnessFeature(t);
 			pool.submit(new FeatureWorker(skewness, i,skew, EVALTYPE.FIRST));
-		//	if(chatty)System.out.println("SKEW evaluated");
 
 			MSDRatioFeature msdr = new MSDRatioFeature(t, 1,5);
 			pool.submit(new FeatureWorker(msdratio, i,msdr, EVALTYPE.FIRST));
-			//if(chatty)System.out.println("MSDR evaluated");
 			
 			StraightnessFeature straight = new StraightnessFeature(t);
 			pool.submit(new FeatureWorker(straightness, i,straight, EVALTYPE.FIRST));
-		//	if(chatty)System.out.println("STRAIGHT evaluated");
 			
 			TrappedProbabilityFeature trappf = new TrappedProbabilityFeature(t);
 			pool.submit(new FeatureWorker(trappedness, i,trappf, EVALTYPE.FIRST));
-			if(chatty)System.out.println("TRAPP evaluated");
 
 			GaussianityFeauture gaussf = new GaussianityFeauture(t, 1);
 			pool.submit(new FeatureWorker(gaussianity, i,gaussf, EVALTYPE.FIRST));
-			if(chatty)System.out.println("GAUSS evaluated");
 		}
 		
 		pool.shutdown();

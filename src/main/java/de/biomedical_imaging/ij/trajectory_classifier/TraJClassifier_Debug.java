@@ -1,6 +1,12 @@
 package de.biomedical_imaging.ij.trajectory_classifier;
 
+import ij.IJ;
+import ij.ImageJ;
+import ij.ImagePlus;
+import ij.ImageStack;
 import ij.measure.CurveFitter;
+import ij.process.ByteProcessor;
+import ij.process.ImageProcessor;
 
 import java.awt.Color;
 import java.util.HashMap;
@@ -8,6 +14,9 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
+
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.math.stat.descriptive.moment.Mean;
@@ -21,14 +30,32 @@ import org.knowm.xchart.Series;
 import org.knowm.xchart.SeriesMarker;
 import org.knowm.xchart.SwingWrapper;
 
+import de.biomedical_imaging.ij.trajectory_classifier.FeatureWorker.EVALTYPE;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
+import de.biomedical_imaging.traJ.VisualizationUtils;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.CovarianceDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
+import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
+import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
+import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
+import de.biomedical_imaging.traJ.features.AsymmetryFeature;
 import de.biomedical_imaging.traJ.features.ConfinedDiffusionParametersFeature;
+import de.biomedical_imaging.traJ.features.EfficiencyFeature;
+import de.biomedical_imaging.traJ.features.ElongationFeature;
+import de.biomedical_imaging.traJ.features.FractalDimensionFeature;
+import de.biomedical_imaging.traJ.features.GaussianityFeauture;
+import de.biomedical_imaging.traJ.features.KurtosisFeature;
+import de.biomedical_imaging.traJ.features.MSDRatioFeature;
 import de.biomedical_imaging.traJ.features.MaxDistanceBetweenTwoPositionsFeature;
+import de.biomedical_imaging.traJ.features.MeanSquaredDisplacmentCurvature;
 import de.biomedical_imaging.traJ.features.MeanSquaredDisplacmentFeature;
 import de.biomedical_imaging.traJ.features.PowerLawFeature;
+import de.biomedical_imaging.traJ.features.ShortTimeLongTimeDiffusioncoefficentRatio;
+import de.biomedical_imaging.traJ.features.SkewnessFeature;
+import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
+import de.biomedical_imaging.traJ.features.StraightnessFeature;
+import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 import de.biomedical_imaging.traJ.simulation.AbstractSimulator;
 import de.biomedical_imaging.traJ.simulation.ActiveTransportSimulator;
 import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionWMSimulation;
@@ -36,7 +63,7 @@ import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
 import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.FreeDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.SimulationUtil;
-import de.biomedical_imaging.traj.math.ConfinedDiffusionMSDCurveFit.FitMethod;
+import de.biomedical_imaging.traj.math.PowerLawCurveFit.FitMethod;
 
 public class TraJClassifier_Debug {
 
@@ -50,96 +77,106 @@ public class TraJClassifier_Debug {
 		int diffusionToNoiseRatio = 2;
 		double sigmaPosNoise = Math.sqrt(2*diffusioncoefficient*timelag)/diffusionToNoiseRatio; 
 		
-		/*
-		FreeDiffusionSimulator freesim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
 		
-		ActiveTransportSimulator actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, timelag, 2, simtracklength);
+		AbstractSimulator sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
+		ArrayList<Trajectory> t = new ArrayList<Trajectory>();
+		Trajectory tr = sim.generateTrajectory();
+		//tr.setRelativStartTimepoint(1);
+		//tr.scale(1.0/0.166);
+		tr.offset(500, 500, 0);
+		VisualizationUtils.showTrajectory(tr);
+		t.add(tr);
+		sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, 2000, 0.5);
+		tr = sim.generateTrajectory();
+		tr = tr.subList(0, 500+1);
+		System.out.println("SIGMA " + sigmaPosNoise);
+		//SimulationUtil.addPositionNoise(tr, sigmaPosNoise);
 		
-		AnomalousDiffusionWMSimulation anomsim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, simtracklength, 0.5);
+		Chart c = VisualizationUtils.showTrajectory(tr);
+		ArrayList<Chart> lc = new ArrayList<Chart>();
+		lc.add(c);
+		VisualizationUtils.ploatCharts(lc);
+		outputFeatures(tr,timelag);
 		
-		ArrayList<Trajectory> tracks = new ArrayList<Trajectory>();
-		for(int i = 0; i < 100; i++){
-			tracks.add(anomsim.generateTrajectory());
+		System.out.println("S: "+ tr.size());
+		tr.offset(750, 750, 0);
+		//tr.setRelativStartTimepoint(1);
+		t.add(tr);
+		
+		new ImageJ();
+		IJ.getInstance().show(true);
+		ImageStack is = new ImageStack(1000, 1000);
+		for(int i = 0; i < simtracklength+1; i++){
+			is.addSlice(new ByteProcessor(1000, 1000));
 		}
 		
-		String[] res = null;
+		ImagePlus img = new ImagePlus("", is);
+		img.show();
+		
+		TraJClassifier_ tclass = new TraJClassifier_();
+		tclass.setTracksToClassify(t);
+		tclass.run("DEBUG");
+		
+	
+	}
+	
+	
+	public static void outputFeatures(Trajectory t,double timelag){
+		int numberOfSegmentsSplineFit = 7;
+		int numberOfPointsForShortTimeLongTimeRatio = 2;
+		AbstractTrajectoryFeature f = new ElongationFeature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
+		
+		f  = new FractalDimensionFeature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
+		
+		f  = new MeanSquaredDisplacmentCurvature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
+		
+		f  = new RegressionDiffusionCoefficientEstimator(t, 1.0/timelag, 1, 3);
+		PowerLawFeature f2 = new PowerLawFeature(t, 1, t.size()/3, FitMethod.SIMPLEX,0.5,f.evaluate()[0]);
+		System.out.println(f.getShortName()+": " + f2.evaluate()[0]);
 
-		String[] trueclasses = new String[6*simtracklength+1];
-		int c = 0;
-			Trajectory t1 = TrajectoryUtil.concactTrajectorie(anomsim.generateTrajectory(), actsim.generateTrajectory());
-			
-			for(int i = 0; i < simtracklength+1; i++){trueclasses[c]="SUB"; c++;}
-			for(int i = 0; i < simtracklength; i++){trueclasses[c]="DIRECTED"; c++;}
-			Trajectory t2 = TrajectoryUtil.concactTrajectorie(t1, anomsim.generateTrajectory());
-			for(int i = 0; i < simtracklength; i++){trueclasses[c]="SUB"; c++;}
-			Trajectory t3 = TrajectoryUtil.concactTrajectorie(t2, actsim.generateTrajectory());
-			for(int i = 0; i < simtracklength; i++){trueclasses[c]="DIRECTED"; c++;}
-			Trajectory t4 = TrajectoryUtil.concactTrajectorie(t3, freesim.generateTrajectory());
-			for(int i = 0; i < simtracklength; i++){trueclasses[c]="FREE"; c++;}
-			actsim = new ActiveTransportSimulator(driftspeed[2], angleVelocity, 1.0/30, 2, simtracklength);
-			freesim = new FreeDiffusionSimulator(diffusioncoefficient*0.5, 1.0/30, 2, simtracklength);
-			
-			Trajectory t5 = TrajectoryUtil.combineTrajectory(freesim.generateTrajectory(), actsim.generateTrajectory());
-	
-			Trajectory t6 = TrajectoryUtil.concactTrajectorie(t4, t5);
-			
-			t6 = SimulationUtil.addPositionNoise(t6, sigmaPosNoise);
-			for(int i = 0; i < simtracklength; i++){trueclasses[c]="DIRECTED"; c++;}
-	
-			// SUB, ACTIVE, SUB, ACTIVE, FREE, FLOW
-			
-			
-			
-			System.out.println("Size Track: " + t6.size());
-			
-			WeightedWindowedClassificationProcess wp = new WeightedWindowedClassificationProcess();
-			AbstractClassifier pred = new RRFClassifierRenjin("/home/thorsten/randomForestModel.RData");
-			pred.start();
-			res = wp.windowedClassification(t6, pred, 30); 
-			System.out.println("Res size " +  res.length);
-			System.out.println("trueclasses size " +  trueclasses.length);
-			printTypes(res);
-			showTrack(t6,res);
-			showTrack(t6,trueclasses);
-			pred.stop();
-			System.out.println("Complete");
-			*/
+	//	StandardDeviationDirectionFeature sdf = new StandardDeviationDirectionFeature(t, timelagForDirectionDeviationLong);
+	//	pool.submit(new FeatureWorker(sdDir, i,sdf, EVALTYPE.FIRST));
+	//	if(chatty)System.out.println("SDDIR evaluated");
+
+		f = new SplineCurveDynamicsFeature(t, numberOfSegmentsSplineFit, 1);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]/f.evaluate()[1]);
 		
+		f = new AsymmetryFeature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
+
 		
-		ExportImportTools io = new ExportImportTools();
-		ArrayList<Trajectory> tracks = io.importTrajectoryDataFromCSV("/home/thorsten/myclassifiedtracks.csv");
-		int id = 47364;
-		Trajectory t = null;
-		ConfinedDiffusionSimulator consim = new ConfinedDiffusionSimulator(diffusioncoefficient, timelag, 0.5, 2, 500);
-		t = consim.generateTrajectory();
-		/*
-		for(int i = 0; i < tracks.size(); i++){
-			if(tracks.get(i).getID()==id){
-				t = tracks.get(i);
-				break;
-			}
-		}
+		f = new Asymmetry2Feature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
 		
-		*/
-		System.out.println("Size: " + t.size());
-		t.showTrajectory();
-		RegressionDiffusionCoefficientEstimator.plotMSDLine(t, 1, t.size()/5);
-		MaxDistanceBetweenTwoPositionsFeature maxdist = new MaxDistanceBetweenTwoPositionsFeature(t);
-		RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1/timelag, 1, 2);
+		f = new Asymmetry3Feature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
 		
-		CovarianceDiffusionCoefficientEstimator covest = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
+		f = new EfficiencyFeature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
 		
-		System.out.println("D (REG): " + regest.evaluate()[0]);
-		System.out.println("D (COV): " + covest.evaluate()[0]);
-		ConfinedDiffusionParametersFeature conv = new ConfinedDiffusionParametersFeature(t, 1/timelag,covest,FitMethod.SIMPLEX);
-		double[] convres = conv.evaluate();
-		System.out.println("R: " + Math.sqrt(convres[0])/Math.sqrt(Math.PI));//+ "A1: " + conv.evaluate()[1] + " A2: " + conv.evaluate()[2]);
-		System.out.println("D" + convres[1]);
-		System.out.println("Max. Dist: " + maxdist.evaluate()[0]);
+		f = new ShortTimeLongTimeDiffusioncoefficentRatio(t, numberOfPointsForShortTimeLongTimeRatio);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
 		
+		f = new KurtosisFeature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
 		
-	//	Trajectory t = consim.generateTrajectory();
-	
+		f = new SkewnessFeature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
+		
+		f = new MSDRatioFeature(t, 1,5);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
+		
+		f = new StraightnessFeature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
+		
+		f = new TrappedProbabilityFeature(t);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
+		
+		f= new GaussianityFeauture(t, 1);
+		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
 	}
 	
 

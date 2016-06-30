@@ -48,6 +48,20 @@ public class TraJClassifier_ implements PlugIn {
 
 	private boolean useR = false;
 	private double timelag;
+	
+	private ArrayList<Subtrajectory> classifiedTrajectories;
+	private ArrayList<Trajectory> tracksToClassify;
+	//private ArrayList<Trajectory> tracks 
+	private static TraJClassifier_ instance;
+	
+	public TraJClassifier_() {
+		instance = this;
+	}
+	
+	public static TraJClassifier_ getInstance(){
+		return instance;
+	}
+	
 	public void run(String arg) {
 		
 		/*
@@ -68,11 +82,11 @@ public class TraJClassifier_ implements PlugIn {
 		GenericDialog gd = new GenericDialog("Parameters Classification");
 	
 		gd.addSlider("Min. tracklength", 1, 1000, 160);
-		gd.addSlider("Min. segment size", 0, 1000, 0);
-		gd.addSlider("Windowsize", 1, 200, 30);
+		gd.addSlider("Min. segment size", 0, 1000, 60);
+		gd.addSlider("Windowsize", 1, 200, 60);
 		gd.addSlider("Filtersize", 0, 200, 0);
 		gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", 0, 0);
-		gd.addNumericField("Pixelsize (µm)*", 0, 4);
+		gd.addNumericField("Pixelsize (µm)*", 0.166, 4);
 		gd.addNumericField("Framerate", 30, 0);
 		gd.addCheckbox("Use parallized R**", false);
 		gd.addMessage("* Set to zero if the imported data is already correctly scaled.");
@@ -91,17 +105,19 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Import Data
 		 */
-		OpenDialog open = new OpenDialog("Choose the TrackMate xml file");
-		String filepath = open.getPath();
-		TrackMateImporter tMateImport = new TrackMateImporter();
-		ArrayList<Trajectory> tracks = tMateImport.importTrackMateXML(filepath);
+		if(!arg.contains("DEBUG")){
+			OpenDialog open = new OpenDialog("Choose the TrackMate xml file");
+			String filepath = open.getPath();
+			TrackMateImporter tMateImport = new TrackMateImporter();
+			tracksToClassify = tMateImport.importTrackMateXML(filepath);
+		}
 		
 		/*
 		 * Scaling
 		 */
 		if(pixelsize>0.000001){
-			for(int i = 0; i < tracks.size(); i++){
-				tracks.get(i).scale(pixelsize);
+			for(int i = 0; i < tracksToClassify.size(); i++){
+				tracksToClassify.get(i).scale(pixelsize);
 			}
 		}
 		
@@ -121,7 +137,6 @@ public class TraJClassifier_ implements PlugIn {
 		
 		int j = 0;
 
-
 		HashMap<String, Color> mapTypeToColor = new HashMap<String, Color>();
 		mapTypeToColor.put("DIRECTED/ACTIVE", Color.MAGENTA);
 		mapTypeToColor.put("NORM. DIFFUSION", Color.RED);
@@ -130,70 +145,56 @@ public class TraJClassifier_ implements PlugIn {
 		mapTypeToColor.put("STALLED", Color.ORANGE);
 		mapTypeToColor.put("NONE", Color.LIGHT_GRAY);
 
-		// Remove tracks which are too short
+		/*
+		 *  Remove tracks which are too short
+		 */
 		ArrayList<Trajectory> minLengthTracks = new ArrayList<Trajectory>();
-		for (Trajectory track : tracks) {
+		for (Trajectory track : tracksToClassify) {
 			if(track.size() > minlength){
 				minLengthTracks.add(track);
 			}
 		}
 		
-		Overlay ov = new Overlay(); 
-		ArrayList<Subtrajectory> classifiedTrajectories = new ArrayList<Subtrajectory>();
+		/*
+		 * Classification and segmentation
+		 */
+		classifiedTrajectories = new ArrayList<Subtrajectory>();
 		for (Trajectory track : minLengthTracks) {
-			ArrayList<PolygonRoi> prArr = new ArrayList<PolygonRoi>();
 			j++;
 			IJ.showProgress(j, minLengthTracks.size());
 
 			String[] classes = wcp.windowedClassification(track, rrf, windowSizeClassification);
+			
 			if(modeSize>0){
 				classes = movingMode(classes, modeSize);
 			}
-			
-			FloatPolygon p = new FloatPolygon();
-			p.addPoint(track.get(0).x, track.get(0).y);
+
 			Subtrajectory tr = new Subtrajectory(track,2);
 			tr.add(track.get(0).x, track.get(0).y, 0);
 			
 			String prevCls = classes[0];
 			int start = track.getRelativeStartTimepoint();
 			tr.setRelativStartTimepoint(start);
+			tr.setType(prevCls);
 			
 			for(int i = 1; i < classes.length; i++){
+				//System.out.println("i " + i + " class: "+classes[i]);
 				if(prevCls == classes[i]){
-					p.addPoint(track.get(i).x, track.get(i).y);
 					tr.add(track.get(i).x, track.get(i).y,0);
-					PolygonRoi pr = new PolygonRoi(p,PolygonRoi.POLYLINE);
-					pr.setStrokeColor(mapTypeToColor.get(prevCls));
-					pr.setPosition(track.getRelativeStartTimepoint()+i);
-					for (PolygonRoi roi : prArr) {
-						PolygonRoi roi2 = new PolygonRoi(roi.getFloatPolygon(), PolygonRoi.POLYLINE);
-						roi2.setPosition(track.getRelativeStartTimepoint()+i);
-						roi2.setStrokeColor(roi.getStrokeColor());
-						//ov.add(roi2);
-
-					}
-					//ov.add(pr);
-
-				}else{
-					PolygonRoi pr = new PolygonRoi(p,PolygonRoi.POLYLINE);
-					pr.setStrokeColor(mapTypeToColor.get(prevCls));
-					pr.setPosition(track.getRelativeStartTimepoint()+i-1);
-					prArr.add(pr);
-					tr.setType(prevCls);
+				}else{;
+					
 					classifiedTrajectories.add(tr);
 					tr = new Subtrajectory(track,2);
 					tr.setRelativStartTimepoint(start+i);
-					p = new FloatPolygon();
-					p.addPoint(track.get(i).x, track.get(i).y);
 					tr.add(track.get(i).x, track.get(i).y,0);
 					prevCls = classes[i];
-
+					tr.setType(prevCls);
 				}
 			}
+			classifiedTrajectories.add(tr);
 		}
 		rrf.stop();
-
+		
 		/*
 		 * FILTER
 		 */
@@ -213,19 +214,25 @@ public class TraJClassifier_ implements PlugIn {
 			}
 		}
 		
-		//Trajetories with a negative short time diffusion coefficient are considered as stalled particles
+		//Trajectories with a negative short time diffusion coefficient are considered as stalled particles
 		for (Trajectory trajectory : classifiedTrajectories) {
 			CovarianceDiffusionCoefficientEstimator regest = new CovarianceDiffusionCoefficientEstimator(trajectory, 1/timelag);
 			if(regest.evaluate()[0]<minDiffusionCoefficient){
 				trajectory.setType("STALLED");
 			}
 		}
-		//Visualization
+		
+		/*
+		 * Visualization
+		 */
+		
+		Overlay ov = new Overlay(); 
 		for(int i = 0; i < classifiedTrajectories.size(); i++){
 			Trajectory tr =  classifiedTrajectories.get(i);
 			ArrayList<Roi> prois = null;
 			if(pixelsize>0.000001){
 				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()),pixelsize);
+				
 			}else{
 				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()));
 			}
@@ -272,17 +279,24 @@ public class TraJClassifier_ implements PlugIn {
 			parents.addValue("END", t.getRelativeStartTimepoint()+t.size()-1);
 		}
 		
-		HashMap<String, ResultsTable> rtables = new HashMap<>();
-		rtables.put("DIRECTED/ACTIVE", new ResultsTable());
-		rtables.put("NORM. DIFFUSION", new ResultsTable());
-		rtables.put("CONFINED", new ResultsTable());
-		rtables.put("STALLED", new ResultsTable());
-		rtables.put("NONE", new ResultsTable());
+		HashMap<String, TraJResultsTable> rtables = new HashMap<>();
+		rtables.put("DIRECTED/ACTIVE", new TraJResultsTable());
+		rtables.put("NORM. DIFFUSION", new TraJResultsTable());
+		rtables.put("SUBDIFFUSION", new TraJResultsTable());
+		rtables.put("CONFINED", new TraJResultsTable());
+		rtables.put("STALLED", new TraJResultsTable());
+		rtables.put("NONE", new TraJResultsTable());
+		
+		
 		IJ.log("Fill results table");
 		for (int i = 0; i < classifiedTrajectories.size(); i++) {
 				IJ.showProgress(i, classifiedTrajectories.size());
 				Subtrajectory t = classifiedTrajectories.get(i);
-				ResultsTable rt = rtables.get(t.getType());
+				System.out.println("Type: " + t.getType());
+				TraJResultsTable rt = rtables.get(t.getType());
+				if(rt == null){
+				System.out.println("null!");
+				}
 				rt.incrementCounter();
 				rt.addValue("ID", t.getID());
 				IJ.log("ID: " + t.getID());
@@ -391,6 +405,9 @@ public class TraJClassifier_ implements PlugIn {
 		IJ.log("Done");
 	}
 
+	public double getTimelag(){
+		return timelag;
+	}
 	public static String[] movingMode(String[] types, int n){
 		ArrayList<String> ltypes = new ArrayList<String>();
 		for(int i =0; i < types.length; i++){
@@ -435,6 +452,11 @@ public class TraJClassifier_ implements PlugIn {
 		return medTypes;	
 	}
 	
+	public ArrayList<Subtrajectory> getClassifiedTrajectories(){
+		return classifiedTrajectories;
+	}
+	
+	
 	 /**
      * Export a resource embedded into a Jar file to the local file path.
      *
@@ -477,7 +499,9 @@ public class TraJClassifier_ implements PlugIn {
         return tmpFolder + resourceName;
     }
 
-
+    public void setTracksToClassify(ArrayList<Trajectory> t) {
+    	tracksToClassify = t;
+    }
 
 
 
