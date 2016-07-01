@@ -69,7 +69,7 @@ public class TraJClassifier_Debug {
 
 	public static void main(String[] args) {
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
-		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
+		double diffusioncoefficient = 50;//9.02*Math.pow(10,-2); //[µm^2/s];
 		double timelag = 1.0/30;
 		double[] driftspeed = {0, 0.27,1,2.4}; // µm/s
 		double angleVelocity = Math.PI/4; //rad/s

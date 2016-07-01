@@ -5,6 +5,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.renjin.sexp.StringVector;
 import org.rosuda.REngine.REXPMismatchException;
 import org.rosuda.REngine.REngineException;
 import org.rosuda.REngine.Rserve.RConnection;
@@ -35,7 +36,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	private RConnection c = null;
 	int cores;
 	private String pathToModel;
-	
+	double[] confindence;
 	public RRFClassifierParallel(String pathToModel) {
 		this.pathToModel = pathToModel;
 	}
@@ -98,15 +99,11 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		 */
 		
 		int N = tracks.size();
-		double[] elong = new double[N];
+		String[] result = new String[N];
 		double[] fd = new double[N];
-		double[] msdcurvature = new double[N];
+		int[] lengths = new int[N];
 		double[] power = new double[N];
-		double[] sdDir = new double[N]; 
-		double[] dratio = new double[N]; 
 		double[] ltStRatio = new double[N]; 
-		double[] asym1 = new double[N]; 
-		double[] asym2 = new double[N];
 		double[] asym3 = new double[N];
 		double[] efficiency = new double[N];
 		double[] kurtosis = new double[N];
@@ -127,38 +124,14 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		//selectedFeatures=c("TYPES","FD","TRAPPED", "EFFICENCY","POWER","SD.DIR","SPLINE.RATIO")
 		for(int i = 0; i < tracks.size(); i++){
 			Trajectory t = tracks.get(i);
-
-			ElongationFeature elongF = new ElongationFeature(t);
-			pool.submit(new FeatureWorker(elong, i,elongF, EVALTYPE.FIRST));
 			
 			FractalDimensionFeature fdF = new FractalDimensionFeature(t);
 			pool.submit(new FeatureWorker(fd, i,fdF, EVALTYPE.FIRST));
 			
-			MeanSquaredDisplacmentCurvature msdCurv = new MeanSquaredDisplacmentCurvature(t);
-			pool.submit(new FeatureWorker(msdcurvature, i,msdCurv, EVALTYPE.FIRST));
-			//if(chatty)System.out.println("MSDCURV evaluated");
 			
 			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
 			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
 			if(chatty)System.out.println("POWER evaluated");
-
-		//	StandardDeviationDirectionFeature sdf = new StandardDeviationDirectionFeature(t, timelagForDirectionDeviationLong);
-		//	pool.submit(new FeatureWorker(sdDir, i,sdf, EVALTYPE.FIRST));
-		//	if(chatty)System.out.println("SDDIR evaluated");
-
-			SplineCurveDynamicsFeature scdf = new SplineCurveDynamicsFeature(t, numberOfSegmentsSplineFit, 1);
-			pool.submit(new FeatureWorker(dratio, i,scdf, EVALTYPE.RATIO_01));
-			if(chatty)System.out.println("SCDF evaluated");
-
-			
-			
-			AsymmetryFeature asymf1 = new AsymmetryFeature(t);
-			pool.submit(new FeatureWorker(asym1, i,asymf1, EVALTYPE.FIRST));
-		//	if(chatty)System.out.println("ASYM1 evaluated");
-			
-			Asymmetry2Feature asymf2 = new Asymmetry2Feature(t);
-			pool.submit(new FeatureWorker(asym2, i,asymf2, EVALTYPE.FIRST));
-			if(chatty)System.out.println("ASYMf2 evaluated");
 			
 			Asymmetry3Feature asymf3 = new Asymmetry3Feature(t);
 			pool.submit(new FeatureWorker(asym3, i,asymf3, EVALTYPE.FIRST));
@@ -213,16 +186,9 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	//	RConnection c = StartRserve.c; 
 		
 		try {
-			
-			c.assign("elong", elong);
 			c.assign("fd",fd);
-			c.assign("msdcurvature",msdcurvature);
 			c.assign("power", power);
-		//	c.assign("sdDir", sdDir);
-			c.assign("D.ratio", dratio);
 			c.assign("LtStRatio", ltStRatio);
-			c.assign("asymmetry1", asym1);
-			c.assign("asymmetry2", asym2);
 			c.assign("asymmetry3", asym3);
 			c.assign("efficiency", efficiency);
 			c.assign("kurtosis",kurtosis);
@@ -231,16 +197,10 @@ public class RRFClassifierParallel extends AbstractClassifier {
 			c.assign("straightness", straightness);
 			c.assign("trappedness", trappedness);
 			c.assign("gaussianity", gaussianity);
-			/*
-			c.voidEval("data<-data.frame(ELONG=elong,FD=fd,MSD.C=msdcurvature,"
-					+ "POWER=power,SPLINE.RATIO=D.ratio,LTST.RATIO=LtStRatio,"
-					+ "ASYM1=asymmetry1,MSD.R=msdratio,ASYM2=asymmetry2,ASYM3=asymmetry3,EFFICENCY=efficiency, KURT=kurtosis,"
+			c.voidEval("data<-data.frame(LENGTHS=lengths,FD=fd,"
+					+ "POWER=power,LTST.RATIO=LtStRatio,"
+					+ "MSD.R=msdratio,ASYM3=asymmetry3,EFFICENCY=efficiency, KURT=kurtosis,"
 					+ "SKEW=skewness,STRAIGHTNESS=straightness, "
-					+ "TRAPPED=trappedness,GAUSS=gaussianity)");
-			*/
-			c.voidEval("data<-data.frame(FD=fd, KURT=kurtosis,"
-					+ "POWER=power,STRAIGHTNESS=straightness,ASYM3=asymmetry3,"
-					+ "MSD.R=msdratio,EFFICENCY=efficiency,LTST.RATIO=LtStRatio,"
 					+ "TRAPPED=trappedness,GAUSS=gaussianity)");
 			
 			//c.voidEval("try(hlp<-missForest(data))");//,parallelize = \"variables\")");
@@ -253,9 +213,17 @@ public class RRFClassifierParallel extends AbstractClassifier {
 			c.voidEval("split_testing<-sort(rank(1:nrow(data))%%"+cores+") ");
 			c.voidEval("pred<-foreach(i=unique(split_testing),"
 					+ ".combine=c,.packages=c(\"randomForest\")) %dopar% {"
-							+ "as.numeric(predict(model,newdata=data[split_testing==i,]))}");
+							+ "as.numeric(predict(model,newdata=data[split_testing==i,],type=\"prob\"))}");
+			
+			c.voidEval("fprob<-pred");
+			c.voidEval("probs <- as.vector(apply(fprob[1:nrow(fprob),],1,max))");
+			c.voidEval("indexmax <- as.vector(apply(fprob[1:nrow(fprob),],1,which.max))");
+			c.voidEval("mynames <- colnames(fprob)");
+			c.voidEval("maxclass <- mynames[indexmax]");
+			res = c.eval("maxclass").asStrings();
 			c.voidEval("lvl<-levels(model$y)");
 			res = c.eval("lvl[pred]").asStrings();
+			confindence = c.eval("probs").asDoubles();
 		} catch (RserveException e) {
 			System.out.println("Message: " + e.getMessage());
 			e.printStackTrace();
@@ -292,7 +260,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	@Override
 	public double[] getConfindence() {
 		// TODO Auto-generated method stub
-		return null;
+		return confindence;
 	}
 
 	

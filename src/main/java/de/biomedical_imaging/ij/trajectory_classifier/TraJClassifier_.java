@@ -294,9 +294,7 @@ public class TraJClassifier_ implements PlugIn {
 				Subtrajectory t = classifiedTrajectories.get(i);
 				System.out.println("Type: " + t.getType());
 				TraJResultsTable rt = rtables.get(t.getType());
-				if(rt == null){
-				System.out.println("null!");
-				}
+				
 				rt.incrementCounter();
 				rt.addValue("ID", t.getID());
 				IJ.log("ID: " + t.getID());
@@ -394,7 +392,7 @@ public class TraJClassifier_ implements PlugIn {
 
 				
 		}
-		//rt.show("Results");
+		
 		parents.show("Parents");
 		Iterator<String> rtIt = rtables.keySet().iterator();
 		while(rtIt.hasNext()){
