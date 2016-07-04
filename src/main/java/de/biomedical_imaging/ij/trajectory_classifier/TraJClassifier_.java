@@ -292,8 +292,7 @@ public class TraJClassifier_ implements PlugIn {
 				rt.addValue("START", t.getRelativeStartTimepoint());
 				rt.addValue("END", t.getRelativeStartTimepoint()+t.size()-1);
 				rt.addValue("CLASS", t.getType());
-				//CovarianceDiffusionCoefficientEstimator cov = new CovarianceDiffusionCoefficientEstimator(t, fps)
-				//rt.addValue("D (SHORT)", value);
+
 				AbstractTrajectoryFeature dcEstim=null;
 				double dc =0;
 				switch (t.getType()) {
@@ -325,9 +324,6 @@ public class TraJClassifier_ implements PlugIn {
 					rt.addValue("D", String.format("%6.3e",dc));
 					break;
 				case "NONE":
-					//dcEstim = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,t.size()-1);
-				//	dc = dcEstim.evaluate()[0];
-				//	rt.addValue("D", String.format("%6.3e",dc));
 					break;
 				default:
 					break;

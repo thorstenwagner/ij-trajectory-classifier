@@ -11,7 +11,7 @@ import org.rosuda.REngine.Rserve.RConnection;
 import org.rosuda.REngine.Rserve.RserveException;
 
 import de.biomedical_imaging.ij.trajectory_classifier.FeatureWorker.EVALTYPE;
-import de.biomedical_imaging.ij.trajectory_classifier.r.StartRserve;
+//import de.biomedical_imaging.ij.trajectory_classifier.r.StartRserve;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
@@ -49,9 +49,10 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	public void start() {
 		
 		
-
+/*
 		StartRserve.launchRserve("R");
 		c = StartRserve.c;
+		*/
 
 		try {
 			c.voidEval("library(\"missForest\")");
