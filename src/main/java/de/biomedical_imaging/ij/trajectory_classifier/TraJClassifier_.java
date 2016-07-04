@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.math3.stat.StatUtils;
@@ -18,6 +17,7 @@ import org.apache.commons.math3.stat.StatUtils;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.AbstractDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.CovarianceDiffusionCoefficientEstimator;
+import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
 import de.biomedical_imaging.traJ.features.CenterOfGravityFeature;
@@ -34,21 +34,22 @@ import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 import de.biomedical_imaging.traj.math.ConfinedDiffusionMSDCurveFit.FitMethod;
 import ij.IJ;
+import ij.Prefs;
 import ij.gui.GenericDialog;
 import ij.gui.Overlay;
-import ij.gui.PolygonRoi;
 import ij.gui.Roi;
 import ij.gui.TextRoi;
 import ij.io.OpenDialog;
 import ij.measure.ResultsTable;
 import ij.plugin.PlugIn;
-import ij.process.FloatPolygon;
 
 public class TraJClassifier_ implements PlugIn {
 
-	private boolean useR = false;
 	private double timelag;
-	
+	private double minTrackLength;
+	private int windowSizeClassification;
+	private double minDiffusionCoefficient;
+	private double pixelsize;
 	private ArrayList<Subtrajectory> classifiedTrajectories;
 	private ArrayList<Trajectory> tracksToClassify;
 	//private ArrayList<Trajectory> tracks 
@@ -79,29 +80,37 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * GUI
 		 */
+		
+		//Load previous settings
+		minTrackLength = Prefs.get("trajclass.minTrackLength", 160);
+		windowSizeClassification = (int) Prefs.get("trajclass.windowSize", 60);
+		minDiffusionCoefficient = Prefs.get("trajclass.minDC", 0);
+		pixelsize = Prefs.get("trajclass.pixelsize", 0.166);
+		timelag = 1.0/Prefs.get("trajclass.framerate",30);
+		
+		//Show GUI
 		GenericDialog gd = new GenericDialog("Parameters Classification");
 	
-		gd.addSlider("Min. tracklength", 1, 1000, 160);
-		gd.addSlider("Min. segment size", 0, 1000, 60);
-		gd.addSlider("Windowsize", 1, 200, 60);
-		gd.addSlider("Filtersize", 0, 200, 0);
-		gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", 0, 0);
-		gd.addNumericField("Pixelsize (µm)*", 0.166, 4);
-		gd.addNumericField("Framerate", 30, 0);
-		gd.addCheckbox("Use parallized R**", false);
+		gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
+		gd.addSlider("Windowsize", 1, 200, windowSizeClassification);
+		gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", minDiffusionCoefficient, 0);
+		gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
+		gd.addNumericField("Framerate", 1/timelag, 0);
 		gd.addMessage("* Set to zero if the imported data is already correctly scaled.");
-		gd.addMessage("** R has to be installed and correctly configured.");
-		gd.addHelp("www.MY HELP PAGE.de");
+		gd.addHelp("www.imagej.net");
 		gd.showDialog();
-		double minlength = gd.getNextNumber();
-		double minseglength = gd.getNextNumber();
-		int windowSizeClassification = (int) (gd.getNextNumber()/2);
-		int modeSize = (int) (gd.getNextNumber()/2);
-		double minDiffusionCoefficient = gd.getNextNumber();
-		double pixelsize = gd.getNextNumber();
+		minTrackLength = gd.getNextNumber();
+		windowSizeClassification = (int) (gd.getNextNumber()/2);
+		minDiffusionCoefficient = gd.getNextNumber();
+		pixelsize = gd.getNextNumber();
 		timelag = 1/gd.getNextNumber();
-		useR = gd.getNextBoolean();
-
+		
+		// Save settings
+		Prefs.set("trajclass.minTrackLength", minTrackLength);
+		Prefs.set("trajclass.windowSize", windowSizeClassification);
+		Prefs.set("trajclass.minDC", minDiffusionCoefficient);
+		Prefs.set("trajclass.pixelsize", pixelsize);
+		Prefs.set("trajclass.framerate", 1/timelag);
 		/*
 		 * Import Data
 		 */
@@ -124,13 +133,7 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Classification, Segmentation & Visualization
 		 */
-		AbstractClassifier rrf = null;
-		if(useR){
-			rrf = new RRFClassifierParallel(modelpath);
-		}else{
-			rrf = new RRFClassifierRenjin(modelpath);
-		}
-		
+		AbstractClassifier rrf = new RRFClassifierRenjin(modelpath);
 		rrf.start();
 		WeightedWindowedClassificationProcess wcp = new WeightedWindowedClassificationProcess();
 		
@@ -150,7 +153,7 @@ public class TraJClassifier_ implements PlugIn {
 		 */
 		ArrayList<Trajectory> minLengthTracks = new ArrayList<Trajectory>();
 		for (Trajectory track : tracksToClassify) {
-			if(track.size() > minlength){
+			if(track.size() > minTrackLength){
 				minLengthTracks.add(track);
 			}
 		}
@@ -164,10 +167,6 @@ public class TraJClassifier_ implements PlugIn {
 			IJ.showProgress(j, minLengthTracks.size());
 
 			String[] classes = wcp.windowedClassification(track, rrf, windowSizeClassification);
-			
-			if(modeSize>0){
-				classes = movingMode(classes, modeSize);
-			}
 
 			Subtrajectory tr = new Subtrajectory(track,2);
 			tr.add(track.get(0).x, track.get(0).y, 0);
@@ -199,11 +198,10 @@ public class TraJClassifier_ implements PlugIn {
 		 * FILTER
 		 */
 		
-		//Remove tracks shorter than min. length
+		//Segments have to contain at least 30 steps
 		for(int i = 0; i < classifiedTrajectories.size(); i++){
-			if(classifiedTrajectories.get(i).size()<minseglength){
-				classifiedTrajectories.remove(i);
-				i--;
+			if(classifiedTrajectories.get(i).size()<30){
+				
 			}
 		}
 	
@@ -214,21 +212,14 @@ public class TraJClassifier_ implements PlugIn {
 			}
 		}
 		
-		//Trajectories with a negative short time diffusion coefficient are considered as stalled particles
-		for (Trajectory trajectory : classifiedTrajectories) {
-			CovarianceDiffusionCoefficientEstimator regest = new CovarianceDiffusionCoefficientEstimator(trajectory, 1/timelag);
-			if(regest.evaluate()[0]<minDiffusionCoefficient){
-				trajectory.setType("STALLED");
-			}
-		}
-		
 		/*
-		 * Visualization
+		 * Visualization 
 		 */
 		
 		Overlay ov = new Overlay(); 
 		for(int i = 0; i < classifiedTrajectories.size(); i++){
-			Trajectory tr =  classifiedTrajectories.get(i);
+			Subtrajectory tr =  classifiedTrajectories.get(i);
+
 			ArrayList<Roi> prois = null;
 			if(pixelsize>0.000001){
 				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()),pixelsize);
@@ -292,7 +283,6 @@ public class TraJClassifier_ implements PlugIn {
 		for (int i = 0; i < classifiedTrajectories.size(); i++) {
 				IJ.showProgress(i, classifiedTrajectories.size());
 				Subtrajectory t = classifiedTrajectories.get(i);
-				System.out.println("Type: " + t.getType());
 				TraJResultsTable rt = rtables.get(t.getType());
 				
 				rt.incrementCounter();
@@ -305,37 +295,46 @@ public class TraJClassifier_ implements PlugIn {
 				rt.addValue("CLASS", t.getType());
 				//CovarianceDiffusionCoefficientEstimator cov = new CovarianceDiffusionCoefficientEstimator(t, fps)
 				//rt.addValue("D (SHORT)", value);
-				CovarianceDiffusionCoefficientEstimator covest=null;
+				AbstractTrajectoryFeature dcEstim=null;
+				double dc =0;
 				switch (t.getType()) {
 				case "DIRECTED/ACTIVE":
-					covest = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
-					rt.addValue("D", String.format("%6.3e",covest.evaluate()[0]));
+					dcEstim = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,t.size()-1);
+					dc = dcEstim.evaluate()[0];
+					rt.addValue("D", String.format("%6.3e",dc));
+					
 					break;
 				case "NORM. DIFFUSION":
-					covest = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
-					rt.addValue("D", String.format("%6.3e",covest.evaluate()[0]));
+					dcEstim = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
+					dc = dcEstim.evaluate()[0];
+					rt.addValue("D", String.format("%6.3e",dc));
 					break;
 				case "CONFINED":
-					AbstractDiffusionCoefficientEstimator dcEst = new CovarianceDiffusionCoefficientEstimator(t,1/timelag);
+					AbstractDiffusionCoefficientEstimator dcEst = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,3);
 					ConfinedDiffusionParametersFeature confp = new ConfinedDiffusionParametersFeature(t,timelag,dcEst,FitMethod.SIMPLEX);
-			
 					double[] p = confp.evaluate();
+					dc = p[1];
 					rt.addValue("CONF. SIZE", p[0]);
-					covest = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
-					rt.addValue("D", String.format("%6.3e",covest.evaluate()[0]));
+					rt.addValue("A (CONF SHAPE)", p[2]);
+					rt.addValue("B (CONF SHAPE)", p[3]);
+					rt.addValue("D", String.format("%6.3e",p[1]));
 					break;
-					
 				case "SUBDIFFUSION":
 					PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
 					double res[] = pwf.evaluate();
-					rt.addValue("D", String.format("%6.3e",res[1]));
-					break;
-				case "STALLED":
+					dc = res[1];
+					rt.addValue("D", String.format("%6.3e",dc));
 					break;
 				case "NONE":
+					//dcEstim = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,t.size()-1);
+				//	dc = dcEstim.evaluate()[0];
+				//	rt.addValue("D", String.format("%6.3e",dc));
 					break;
 				default:
 					break;
+				}
+				if(dc<minDiffusionCoefficient){
+					t.setType("STALLED");
 				}
 				AbstractTrajectoryFeature f = new CenterOfGravityFeature(t);
 				double cog_x = f.evaluate()[0];
@@ -343,53 +342,55 @@ public class TraJClassifier_ implements PlugIn {
 				rt.addValue("X (COG)", cog_x);
 				rt.addValue("Y (COG)", cog_y);
 				
-				
-				FractalDimensionFeature fdf = new FractalDimensionFeature(t);
-				double v = fdf.evaluate()[0];;
-				rt.addValue("FRACT. DIM.", v);
-				
-				TrappedProbabilityFeature trapped = new TrappedProbabilityFeature(t);
-				v = trapped.evaluate()[0];
-				rt.addValue("TRAPPEDNESS", v);
-				
-				EfficiencyFeature eff = new EfficiencyFeature(t);
-				v=eff.evaluate()[0];
-				rt.addValue("EFFICENCY", v);
-				
-				StraightnessFeature straight = new StraightnessFeature(t);
-				v= straight.evaluate()[0];
-				rt.addValue("STRAIGHTNESS", v);
-				
-				MeanSpeedFeature msfeature = new MeanSpeedFeature(t, timelag);
-				v = msfeature.evaluate()[1];
-				rt.addValue("SPEED", v);
-				
-				KurtosisFeature kurt = new KurtosisFeature(t);
-				v = kurt.evaluate()[0];
-				rt.addValue("KURTOSIS", v);
-				
-				AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
-				double[] res = pwf.evaluate();
-				v = res[0];
-				rt.addValue("ALPHA", v);
-				
-				GaussianityFeauture gauss = new GaussianityFeauture(t, 1);
-				v = gauss.evaluate()[0];
-				rt.addValue("GAUSSIANITY", v);
-				
-				Asymmetry3Feature asym3 = new Asymmetry3Feature(t);
-				v = asym3.evaluate()[0];
-				rt.addValue("Asymmetry", v);
-				
-				MSDRatioFeature msdratio = new MSDRatioFeature(t, 1, 5);
-				v = msdratio.evaluate()[0];
-				rt.addValue("MSDRatio", v);
-				
-				
-				ShortTimeLongTimeDiffusioncoefficentRatio ltstratio = new ShortTimeLongTimeDiffusioncoefficentRatio(t, 2);
-				v = ltstratio.evaluate()[0];
-				rt.addValue("LTSTRatio", v);
+				if(t.getType().equals("NONE")==false){
+					FractalDimensionFeature fdf = new FractalDimensionFeature(t);
+					double v = fdf.evaluate()[0];;
+					rt.addValue("FRACT. DIM.", v);
+					
+					TrappedProbabilityFeature trapped = new TrappedProbabilityFeature(t);
+					v = trapped.evaluate()[0];
+					rt.addValue("TRAPPEDNESS", v);
+					
+					EfficiencyFeature eff = new EfficiencyFeature(t);
+					v=eff.evaluate()[0];
+					rt.addValue("EFFICENCY", v);
+					
+					StraightnessFeature straight = new StraightnessFeature(t);
+					v= straight.evaluate()[0];
+					rt.addValue("STRAIGHTNESS", v);
+					
+					MeanSpeedFeature msfeature = new MeanSpeedFeature(t, timelag);
+					v = msfeature.evaluate()[1];
+					rt.addValue("SPEED", v);
+					
+					KurtosisFeature kurt = new KurtosisFeature(t);
+					v = kurt.evaluate()[0];
+					rt.addValue("KURTOSIS", v);
+					
+					AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
+					double[] res = pwf.evaluate();
+					v = res[0];
+					rt.addValue("ALPHA", v);
+					
+					GaussianityFeauture gauss = new GaussianityFeauture(t, 1);
+					v = gauss.evaluate()[0];
+					rt.addValue("GAUSSIANITY", v);
+					
+					Asymmetry3Feature asym3 = new Asymmetry3Feature(t);
+					v = asym3.evaluate()[0];
+					rt.addValue("Asymmetry", v);
+					
+					MSDRatioFeature msdratio = new MSDRatioFeature(t, 1, 5);
+					v = msdratio.evaluate()[0];
+					rt.addValue("MSDRatio", v);
+					
+					
+					ShortTimeLongTimeDiffusioncoefficentRatio ltstratio = new ShortTimeLongTimeDiffusioncoefficentRatio(t, 2);
+					v = ltstratio.evaluate()[0];
+					rt.addValue("LTSTRatio", v);
 
+				}
+				
 				
 		}
 		
@@ -402,7 +403,8 @@ public class TraJClassifier_ implements PlugIn {
 		
 		IJ.log("Done");
 	}
-
+	
+	
 	public double getTimelag(){
 		return timelag;
 	}

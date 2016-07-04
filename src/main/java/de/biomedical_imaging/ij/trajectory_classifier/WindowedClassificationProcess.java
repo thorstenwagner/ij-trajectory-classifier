@@ -4,6 +4,12 @@ import java.util.ArrayList;
 
 import de.biomedical_imaging.traJ.Trajectory;
 
+
+/**
+ * DOES NOT WORK ANYMORE
+ * @author thorsten
+ *
+ */
 public class WindowedClassificationProcess {
 	
 	public String[] windowedClassification(Trajectory t, AbstractClassifier c, int n){

@@ -15,6 +15,7 @@ import org.knowm.xchart.Chart;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.VisualizationUtils;
+import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.features.ConfinedDiffusionParametersFeature;
 import de.biomedical_imaging.traJ.features.PowerLawFeature;
 import ij.IJ;
@@ -53,25 +54,33 @@ public class TraJResultsTable extends ResultsTable {
 						int id = (int) table.getValue("ID", selectionStart);
 						ArrayList<? extends Trajectory> cTracks = TraJClassifier_.getInstance().getClassifiedTrajectories();
 						Trajectory t = TrajectoryUtil.getTrajectoryByID(cTracks, id);
-						Chart c = VisualizationUtils.showTrajectory("Trajectory with ID " + id,t);
+						Chart c = VisualizationUtils.getTrajectoryChart("Trajectory with ID " + id,t);
 						charts.add(c);
 						if(t.getType().equals("SUBDIFFUSION")){
 							PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
 							double[] res = pwf.evaluate();
-							c = VisualizationUtils.plotMSDLineWithPowerModel(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), res[0], res[1]);
+							c = VisualizationUtils.getMSDLineWithPowerModelChart(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), res[0], res[1]);
 							charts.add(c);
 							
 
 						}else if(t.getType().equals("CONFINED")){
 							ConfinedDiffusionParametersFeature cfeature = new ConfinedDiffusionParametersFeature(t, TraJClassifier_.getInstance().getTimelag());
 							double[] res= cfeature.evaluate();
-							c = VisualizationUtils.plotMSDLineWithConfinedModel(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), res[0], res[2], res[3], res[1]);
+							c = VisualizationUtils.getMSDLineWithConfinedModelChart(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), res[0], res[2], res[3], res[1]);
+							charts.add(c);
+						}else if(t.getType().equals("NORM. DIFFUSION")){
+							RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1/TraJClassifier_.getInstance().getTimelag(), 1, t.size()/3);
+							double[] res =regest.evaluate();
+							double dc = res[0];
+							double intercept = res[2];
+							System.out.println("RES2 " + res[2]);
+							c = VisualizationUtils.getMSDLineWithFreeModelChart(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), dc, intercept);
 							charts.add(c);
 						}else{
-							c = VisualizationUtils.plotMSDLine(t, 1, t.size()/3);
+							c = VisualizationUtils.getMSDLineChart(t, 1, t.size()/3);
 							charts.add(c);
 						}
-						VisualizationUtils.ploatCharts(charts);
+						VisualizationUtils.plotCharts(charts);
 					}else if( selectionStart!=selectionEnd){
 						IJ.showMessage("Plot of multiple trajectories is not possible");
 					}

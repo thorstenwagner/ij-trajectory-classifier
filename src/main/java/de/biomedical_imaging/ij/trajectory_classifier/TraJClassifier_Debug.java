@@ -84,29 +84,27 @@ public class TraJClassifier_Debug {
 		//tr.setRelativStartTimepoint(1);
 		//tr.scale(1.0/0.166);
 		tr.offset(500, 500, 0);
-		VisualizationUtils.showTrajectory(tr);
-		t.add(tr);
-		sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, 2000, 0.5);
-		tr = sim.generateTrajectory();
-		tr = tr.subList(0, 500+1);
-		System.out.println("SIGMA " + sigmaPosNoise);
-		//SimulationUtil.addPositionNoise(tr, sigmaPosNoise);
-		
-		Chart c = VisualizationUtils.showTrajectory(tr);
 		ArrayList<Chart> lc = new ArrayList<Chart>();
+		Chart c = VisualizationUtils.getTrajectoryChart(tr);
 		lc.add(c);
-		VisualizationUtils.ploatCharts(lc);
-		outputFeatures(tr,timelag);
+		//t.add(tr);
 		
-		System.out.println("S: "+ tr.size());
-		tr.offset(750, 750, 0);
-		//tr.setRelativStartTimepoint(1);
+		
+		sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, 2000, 0.5);
+		Trajectory tr2 = sim.generateTrajectory();
+		tr2 = tr2.subList(0, 500+1);
+		t.add(TrajectoryUtil.concactTrajectorie(tr, tr2));
+		
+		double radius_confined = Math.sqrt(-1*Math.log(0.9)*(4*diffusioncoefficient*60*timelag));
+		System.out.println("Radius:" + radius_confined*1000);
+		sim = new ConfinedDiffusionSimulator(diffusioncoefficient,timelag,radius_confined,2,500);
+		tr = sim.generateTrajectory();
+		tr.offset(250, 250, 0);
 		t.add(tr);
-		
 		new ImageJ();
 		IJ.getInstance().show(true);
 		ImageStack is = new ImageStack(1000, 1000);
-		for(int i = 0; i < simtracklength+1; i++){
+		for(int i = 0; i < 1005; i++){
 			is.addSlice(new ByteProcessor(1000, 1000));
 		}
 		

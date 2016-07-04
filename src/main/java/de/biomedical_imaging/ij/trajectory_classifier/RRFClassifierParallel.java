@@ -5,7 +5,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import org.renjin.sexp.StringVector;
 import org.rosuda.REngine.REXPMismatchException;
 import org.rosuda.REngine.REngineException;
 import org.rosuda.REngine.Rserve.RConnection;
@@ -31,12 +30,17 @@ import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 
+/**
+ * DOES NOT WORK ANYMORE
+ * @author Thorsten Wagner
+ *
+ */
 public class RRFClassifierParallel extends AbstractClassifier {
 	public static boolean chatty= false;
 	private RConnection c = null;
 	int cores;
 	private String pathToModel;
-	double[] confindence;
+	
 	public RRFClassifierParallel(String pathToModel) {
 		this.pathToModel = pathToModel;
 	}
@@ -64,6 +68,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		} catch (RserveException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+			stop();
 		}
 
 	}
@@ -124,7 +129,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		//selectedFeatures=c("TYPES","FD","TRAPPED", "EFFICENCY","POWER","SD.DIR","SPLINE.RATIO")
 		for(int i = 0; i < tracks.size(); i++){
 			Trajectory t = tracks.get(i);
-			
+			lengths[i] = t.size();
 			FractalDimensionFeature fdF = new FractalDimensionFeature(t);
 			pool.submit(new FeatureWorker(fd, i,fdF, EVALTYPE.FIRST));
 			
@@ -187,6 +192,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 		
 		try {
 			c.assign("fd",fd);
+			c.assign("lengths",lengths);
 			c.assign("power", power);
 			c.assign("LtStRatio", ltStRatio);
 			c.assign("asymmetry3", asym3);
@@ -213,26 +219,20 @@ public class RRFClassifierParallel extends AbstractClassifier {
 			c.voidEval("split_testing<-sort(rank(1:nrow(data))%%"+cores+") ");
 			c.voidEval("pred<-foreach(i=unique(split_testing),"
 					+ ".combine=c,.packages=c(\"randomForest\")) %dopar% {"
-							+ "as.numeric(predict(model,newdata=data[split_testing==i,],type=\"prob\"))}");
-			
-			c.voidEval("fprob<-pred");
-			c.voidEval("probs <- as.vector(apply(fprob[1:nrow(fprob),],1,max))");
-			c.voidEval("indexmax <- as.vector(apply(fprob[1:nrow(fprob),],1,which.max))");
-			c.voidEval("mynames <- colnames(fprob)");
-			c.voidEval("maxclass <- mynames[indexmax]");
-			res = c.eval("maxclass").asStrings();
+							+ "as.numeric(predict(model,newdata=data[split_testing==i,]))}");
 			c.voidEval("lvl<-levels(model$y)");
 			res = c.eval("lvl[pred]").asStrings();
-			confindence = c.eval("probs").asDoubles();
 		} catch (RserveException e) {
 			System.out.println("Message: " + e.getMessage());
 			e.printStackTrace();
 			try {
 				c.voidEval("save(data,file=\"/home/thorsten/baddata.Rdata\")");
 				System.out.println("Bad data is saved...");
+				stop();
 			} catch (RserveException e1) {
 				System.out.println("NOT");
 				e1.printStackTrace();
+				stop();
 			}
 			
 			
@@ -260,7 +260,7 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	@Override
 	public double[] getConfindence() {
 		// TODO Auto-generated method stub
-		return confindence;
+	  return null;
 	}
 
 	

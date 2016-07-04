@@ -26,6 +26,8 @@ public class WeightedWindowedClassificationProcess {
 			Trajectory sub = t.subList(i, i+windowsize-1);
 			tracks.add(sub);
 		}
+		
+		
 		String[] res = c.classify(tracks);
 		double[] confidence = c.getConfindence();
 		
