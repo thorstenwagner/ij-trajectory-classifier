@@ -71,7 +71,6 @@ public class TraJClassifier_ implements PlugIn {
 		String modelpath="";
 		try {
 			modelpath= ExportResource("/randomForestModel.RData");
-			System.out.println("P: " + modelpath);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();

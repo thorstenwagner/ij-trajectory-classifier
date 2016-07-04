@@ -175,8 +175,15 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 					+ "TRAPPED=trappedness,GAUSS=gaussianity)");
 			engine.eval("features.predict <- predict(model,data,type=\"prob\")");
 			engine.eval("fprob<-features.predict");
-			engine.eval("probs <- as.vector(apply(fprob[1:nrow(fprob),],1,max))");
-			engine.eval("indexmax <- as.vector(apply(fprob[1:nrow(fprob),],1,which.max))");
+			
+			if(tracks.size()>1){
+				engine.eval("probs <- as.vector(apply(fprob[1:nrow(fprob),],1,max))");
+				engine.eval("indexmax <- as.vector(apply(fprob[1:nrow(fprob),],1,which.max))");
+			}
+			else{
+				engine.eval("probs <- max(fprob)");
+				engine.eval("indexmax <- which.max(fprob)");
+			}
 			engine.eval("mynames <- colnames(fprob)");
 			engine.eval("maxclass <- mynames[indexmax]");
 			StringVector res = (StringVector)engine.eval("maxclass");
