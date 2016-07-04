@@ -1,4 +1,5 @@
-package de.biomedical_imaging.ij.trajectory_classifier;
+
+/*package de.biomedical_imaging.ij.trajectory_classifier;
 
 import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
@@ -30,11 +31,7 @@ import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 
-/**
- * DOES NOT WORK ANYMORE
- * @author Thorsten Wagner
- *
- */
+
 public class RRFClassifierParallel extends AbstractClassifier {
 	public static boolean chatty= false;
 	private RConnection c = null;
@@ -49,10 +46,10 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	public void start() {
 		
 		
-/*
+
 		StartRserve.launchRserve("R");
 		c = StartRserve.c;
-		*/
+		
 
 		try {
 			c.voidEval("library(\"missForest\")");
@@ -100,9 +97,9 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	@Override
 	public String[] classify(ArrayList<Trajectory> tracks) {
 		
-		/*
-		 * Generate Dataset
-		 */
+		
+		// Generate Dataset
+		 
 		
 		int N = tracks.size();
 		String[] result = new String[N];
@@ -184,9 +181,9 @@ public class RRFClassifierParallel extends AbstractClassifier {
 			}
 		long estimatedTime = System.currentTimeMillis() - startTime;
 		System.out.println("Calc features finished:" + estimatedTime);
-		/*
-		 * Classify
-		 */
+		
+		// Classify
+		
 
 		String[] res =null;
 	//	RConnection c = StartRserve.c; 
@@ -269,3 +266,4 @@ public class RRFClassifierParallel extends AbstractClassifier {
 	
 
 }
+*/
