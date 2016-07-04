@@ -5,11 +5,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Vector;
-
 import org.apache.commons.math3.stat.Frequency;
-import org.apache.commons.math3.stat.StatUtils;
-
 import de.biomedical_imaging.traJ.Trajectory;
 
 public class WeightedWindowedClassificationProcess {
@@ -59,17 +55,10 @@ public class WeightedWindowedClassificationProcess {
 			for(int j = i; j < i+2*n+1;j++){
 				int typ = mapTypeToInt.get(res[i]);
 				int weight = (int)(confidence[i]*100);
-				//if(weight>60){
 					for(int k = 0; k < weight; k++){
 						weightes.get(j).add(typ);
 						
 					}
-				//}else{
-				//	typ = mapTypeToInt.get("NONE");
-				//	for(int k = 0; k < weight; k++){
-				//		weightes.get(j).add(typ);
-				//	}
-				//}
 			}
 		}
 		
@@ -78,15 +67,9 @@ public class WeightedWindowedClassificationProcess {
 				double[] help = arrListToArray(weightes.get(i));
 				double[] modes = getMode(help,0,help.length);
 				int mode1 = (int)modes[0];
-				double freq = modes[1];
 				String mode = mapIntToType.get(mode1);
-				
-				//if(freq>0.5){
-					types[i] = mode;
-			//	}else{
-			//		System.out.println("f: " + freq);
-				//	types[i] = "NONE";
-				//}
+				types[i] = mode;
+		
 			}
 			else{
 				types[i] = "NONE";
@@ -108,10 +91,6 @@ public class WeightedWindowedClassificationProcess {
         List<Comparable<?>> list = freq.getMode();
         // Convert the list to an array of primitive double
         double[] modes = new double[2];
-      //  int i = 0;
-        //for(Comparable<?> c : list) {
-         //   modes[i++] = ((Double) c).doubleValue();
-        //}
         modes[0] = ((Double) list.get(0)).doubleValue();
         modes[1] = freq.getCount(Double.valueOf(modes[0]))/(1.0*length);
         return modes;

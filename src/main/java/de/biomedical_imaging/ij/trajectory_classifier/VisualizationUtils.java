@@ -9,7 +9,6 @@ import java.awt.Color;
 import java.awt.Font;
 import java.util.ArrayList;
 
-import de.biomedical_imaging.traJ.Trajectory;
 
 public class VisualizationUtils {
 	

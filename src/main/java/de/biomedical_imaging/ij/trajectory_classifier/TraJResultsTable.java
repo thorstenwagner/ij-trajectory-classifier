@@ -1,6 +1,5 @@
 package de.biomedical_imaging.ij.trajectory_classifier;
 
-import java.awt.Color;
 import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.event.ActionEvent;

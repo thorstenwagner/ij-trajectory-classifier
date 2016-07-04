@@ -16,20 +16,15 @@ import org.renjin.sexp.StringVector;
 import de.biomedical_imaging.ij.trajectory_classifier.FeatureWorker.EVALTYPE;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
-import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
-import de.biomedical_imaging.traJ.features.AsymmetryFeature;
 import de.biomedical_imaging.traJ.features.EfficiencyFeature;
-import de.biomedical_imaging.traJ.features.ElongationFeature;
 import de.biomedical_imaging.traJ.features.FractalDimensionFeature;
 import de.biomedical_imaging.traJ.features.GaussianityFeauture;
 import de.biomedical_imaging.traJ.features.KurtosisFeature;
 import de.biomedical_imaging.traJ.features.MSDRatioFeature;
-import de.biomedical_imaging.traJ.features.MeanSquaredDisplacmentCurvature;
 import de.biomedical_imaging.traJ.features.PowerLawFeature;
 import de.biomedical_imaging.traJ.features.ShortTimeLongTimeDiffusioncoefficentRatio;
 import de.biomedical_imaging.traJ.features.SkewnessFeature;
-import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 import de.biomedical_imaging.traj.math.PowerLawCurveFit.FitMethod;
@@ -37,7 +32,6 @@ import de.biomedical_imaging.traj.math.PowerLawCurveFit.FitMethod;
 public class RRFClassifierRenjin extends AbstractClassifier  {
 
 	private ScriptEngine engine = null;
-	private boolean chatty = false;
 	private String pathToModel;
 	private double[] confindence;
 	
@@ -98,10 +92,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		double[] trappedness = new double[N];
 		double[] gaussianity = new double[N];
 		
-		int numberOfSegmentsSplineFit = 7;
 		int numberOfPointsForShortTimeLongTimeRatio = 2;
-		
-		
 		int cores = Runtime.getRuntime().availableProcessors();
 		ExecutorService pool = Executors.newFixedThreadPool(cores);
 		

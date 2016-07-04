@@ -4,6 +4,10 @@ import de.biomedical_imaging.traJ.Trajectory;
 
 public class Subtrajectory extends Trajectory {
 	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3846588503781023924L;
 	private Trajectory parent;
 	
 	public Subtrajectory(Trajectory parent, int dimension) {
