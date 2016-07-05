@@ -16,13 +16,13 @@ public class WeightedWindowedClassificationProcess {
 		for(int i = 0; i < types.length; i++){
 			types[i] = "NONE";
 		}
-	
+		int increment = 1;
 		ArrayList<Trajectory> tracks = new ArrayList<Trajectory>();
-		for(int i = 0; i < (t.size()-windowsize+1);i++){
+		for(int i = 0; i < (t.size()-windowsize+increment);i=i+increment){
 			Trajectory sub = t.subList(i, i+windowsize-1);
 			tracks.add(sub);
 		}
-		
+		System.out.println("Size: " + tracks.size());
 		
 		String[] res = c.classify(tracks);
 		double[] confidence = c.getConfindence();

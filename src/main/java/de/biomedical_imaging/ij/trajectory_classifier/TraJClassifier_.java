@@ -50,12 +50,19 @@ public class TraJClassifier_ implements PlugIn {
 	private int windowSizeClassification;
 	private double minDiffusionCoefficient;
 	private double pixelsize;
+	private boolean showID;
 	private ArrayList<Subtrajectory> classifiedTrajectories;
 	private ArrayList<Trajectory> tracksToClassify;
 	//private ArrayList<Trajectory> tracks 
 	private static TraJClassifier_ instance;
 	
+	
 	public TraJClassifier_() {
+		minTrackLength=160;
+		windowSizeClassification=60;
+		minDiffusionCoefficient=0;
+		pixelsize=0.166;
+		timelag=1.0/30;
 		instance = this;
 	}
 	
@@ -80,36 +87,42 @@ public class TraJClassifier_ implements PlugIn {
 		 * GUI
 		 */
 		
-		//Load previous settings
-		minTrackLength = Prefs.get("trajclass.minTrackLength", 160);
-		windowSizeClassification = (int) Prefs.get("trajclass.windowSize", 60);
-		minDiffusionCoefficient = Prefs.get("trajclass.minDC", 0);
-		pixelsize = Prefs.get("trajclass.pixelsize", 0.166);
-		timelag = 1.0/Prefs.get("trajclass.framerate",30);
+		if(!arg.contains("NOGUI")){
+			//Load previous settings
+			minTrackLength = Prefs.get("trajclass.minTrackLength", 160);
+			windowSizeClassification = (int) Prefs.get("trajclass.windowSize", 60);
+			minDiffusionCoefficient = Prefs.get("trajclass.minDC", 0);
+			pixelsize = Prefs.get("trajclass.pixelsize", 0.166);
+			timelag = 1.0/Prefs.get("trajclass.framerate",30);
+			showID = Prefs.getBoolean("trajclass.showID", true);
+			
+			//Show GUI
+			GenericDialog gd = new GenericDialog("Parameters Classification");
 		
-		//Show GUI
-		GenericDialog gd = new GenericDialog("Parameters Classification");
-	
-		gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
-		gd.addSlider("Windowsize", 1, 200, windowSizeClassification);
-		gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", minDiffusionCoefficient, 0);
-		gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
-		gd.addNumericField("Framerate", 1/timelag, 0);
-		gd.addMessage("* Set to zero if the imported data is already correctly scaled.");
-		gd.addHelp("www.imagej.net");
-		gd.showDialog();
-		minTrackLength = gd.getNextNumber();
-		windowSizeClassification = (int) (gd.getNextNumber()/2);
-		minDiffusionCoefficient = gd.getNextNumber();
-		pixelsize = gd.getNextNumber();
-		timelag = 1/gd.getNextNumber();
-		
-		// Save settings
-		Prefs.set("trajclass.minTrackLength", minTrackLength);
-		Prefs.set("trajclass.windowSize", windowSizeClassification);
-		Prefs.set("trajclass.minDC", minDiffusionCoefficient);
-		Prefs.set("trajclass.pixelsize", pixelsize);
-		Prefs.set("trajclass.framerate", 1/timelag);
+			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
+			gd.addSlider("Windowsize", 1, 200, windowSizeClassification);
+			gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", minDiffusionCoefficient, 0);
+			gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
+			gd.addNumericField("Framerate", 1/timelag, 0);
+			gd.addCheckbox("Show IDs", showID);
+			gd.addMessage("* Set to zero if the imported data is already correctly scaled.");
+			gd.addHelp("www.imagej.net");
+			gd.showDialog();
+			minTrackLength = gd.getNextNumber();
+			windowSizeClassification = (int) (gd.getNextNumber()/2);
+			minDiffusionCoefficient = gd.getNextNumber();
+			pixelsize = gd.getNextNumber();
+			timelag = 1/gd.getNextNumber();
+			showID = gd.getNextBoolean();
+			
+			// Save settings
+			Prefs.set("trajclass.minTrackLength", minTrackLength);
+			Prefs.set("trajclass.windowSize", windowSizeClassification);
+			Prefs.set("trajclass.minDC", minDiffusionCoefficient);
+			Prefs.set("trajclass.pixelsize", pixelsize);
+			Prefs.set("trajclass.framerate", 1/timelag);
+			Prefs.set("trajclass.showID", showID);
+		}
 		/*
 		 * Import Data
 		 */
@@ -497,6 +510,53 @@ public class TraJClassifier_ implements PlugIn {
     public void setTracksToClassify(ArrayList<Trajectory> t) {
     	tracksToClassify = t;
     }
+    
+
+	public double getMinTrackLength() {
+		return minTrackLength;
+	}
+
+	public void setMinTrackLength(double minTrackLength) {
+		this.minTrackLength = minTrackLength;
+	}
+	
+	public double getMinDiffusionCoefficient() {
+		return minDiffusionCoefficient;
+	}
+
+	public void setMinDiffusionCoefficient(double minDiffusionCoefficient) {
+		this.minDiffusionCoefficient = minDiffusionCoefficient;
+	}
+
+	public double getPixelsize() {
+		return pixelsize;
+	}
+
+	public void setPixelsize(double pixelsize) {
+		this.pixelsize = pixelsize;
+	}
+
+	public boolean isShowID() {
+		return showID;
+	}
+
+	public void setShowID(boolean showID) {
+		this.showID = showID;
+	}
+
+	public int getWindowSizeClassification() {
+		return windowSizeClassification;
+	}
+
+	public void setTimelag(double timelag) {
+		this.timelag = timelag;
+	}
+
+	
+	
+	public void setWindowSizeClassification(int windowSizeClassification){
+		this.windowSizeClassification = windowSizeClassification;
+	}
 
 
 

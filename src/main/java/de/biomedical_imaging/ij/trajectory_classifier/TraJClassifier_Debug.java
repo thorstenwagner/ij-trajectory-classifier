@@ -113,7 +113,11 @@ public class TraJClassifier_Debug {
 		
 		TraJClassifier_ tclass = new TraJClassifier_();
 		tclass.setTracksToClassify(t);
+		final long timeStart = System.currentTimeMillis(); 
+
 		tclass.run("DEBUG");
+		final long timeEnd = System.currentTimeMillis(); 
+	    System.out.println("Laufzeit: " + (timeEnd - timeStart) + " Millisek."); 
 		
 	
 	}
