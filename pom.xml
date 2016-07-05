@@ -24,6 +24,11 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 			<id>ossrh</id>
 			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
 		</repository>
+		 <repository>
+		    <id>bedatadriven</id>
+		    <name>bedatadriven public repo</name>
+		    <url>https://nexus.bedatadriven.com/content/groups/public/</url>
+		  </repository>
 	</repositories>
 	
  	<dependencies>
