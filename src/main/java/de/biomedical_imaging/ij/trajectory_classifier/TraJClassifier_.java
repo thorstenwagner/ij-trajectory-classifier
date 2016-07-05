@@ -306,7 +306,7 @@ public class TraJClassifier_ implements PlugIn {
 			parents.addValue("END", t.getRelativeStartTimepoint()+t.size()-1);
 		}
 		
-		HashMap<String, TraJResultsTable> rtables = new HashMap<>();
+		HashMap<String, TraJResultsTable> rtables = new HashMap<String, TraJResultsTable>();
 		rtables.put("DIRECTED/ACTIVE", new TraJResultsTable());
 		rtables.put("NORM. DIFFUSION", new TraJResultsTable());
 		rtables.put("SUBDIFFUSION", new TraJResultsTable());

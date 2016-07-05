@@ -18,15 +18,13 @@ import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionWMSimulation;
 import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
 import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.FreeDiffusionSimulator;
-import de.biomedical_imaging.traJ.simulation.SimulationUtil;
 
 public class RRFClassifierRenjinTest {
 	static RRFClassifierRenjin c;
+	
 	@BeforeClass
 	public static void setup(){
-		/*
-		 * Export model!
-		 */
+		
 		TraJClassifier_ tclass = new TraJClassifier_();
 		String modelpath="";
 		try {
@@ -91,9 +89,6 @@ public class RRFClassifierRenjinTest {
 
 		AbstractSimulator sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, simtracklength, 0.5);
 		Trajectory t = sim.generateTrajectory();
-		//double diffusionToNoiseRatio = 18;//2 + CentralRandomNumberGenerator.getInstance().nextDouble()*18;
-		//double sigmaPosNoise = Math.sqrt(2*diffusioncoefficient*timelag)/diffusionToNoiseRatio; 
-		//SimulationUtil.addPositionNoise(t, sigmaPosNoise);
 		String res = c.classify(t);
 
 		assertEquals("SUBDIFFUSION", res);
