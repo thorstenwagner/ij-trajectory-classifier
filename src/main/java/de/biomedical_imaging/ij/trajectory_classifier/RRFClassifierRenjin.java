@@ -213,6 +213,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
 		return result;
 	}
 
