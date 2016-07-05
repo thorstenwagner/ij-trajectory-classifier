@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/thorstenwagner/ij-trajectory-classifier.svg?branch=master)](https://travis-ci.org/thorstenwagner/ij-trajectory-classifier)
 #Trajectory classifier
-This plugin loads a 2D TraJ trajectory and applies 
-an random forest classification using R via RServe
+This plugin loads trajectories from trackmate and applies 
+an random forest classification using renjin
