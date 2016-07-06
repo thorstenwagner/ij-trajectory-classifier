@@ -294,9 +294,9 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Export classified trajectories
 		 */
-		IJ.log("Export");
-		ExportImportTools iotools = new ExportImportTools();
-		iotools.exportTrajectoryDataAsCSV(classifiedTrajectories, "/home/thorsten/myclassifiedtracks.csv");
+		//IJ.log("Export");
+		//ExportImportTools iotools = new ExportImportTools();
+		//iotools.exportTrajectoryDataAsCSV(classifiedTrajectories, "/home/thorsten/myclassifiedtracks.csv");
 		
 		/*
 		 * Fill results table

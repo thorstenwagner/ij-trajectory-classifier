@@ -129,9 +129,14 @@ public class TraJResultsTable extends ResultsTable {
 				
 					int selectionStart = p.getSelectionStart();
 					int selectionEnd = p.getSelectionEnd();
+					if(selectionStart == -1 && selectionEnd == -1){
+						selectionStart = 0;
+						selectionEnd = p.getResultsTable().getCounter();
+					}
+				
 					ArrayList<Trajectory> selectedTrajectories = new ArrayList<Trajectory>();
-					for( int i = selectionEnd; i <= selectionEnd; i++){
-						int id = (int) table.getValue("ID", selectionStart);
+					for( int i = selectionStart; i < selectionEnd; i++){
+						int id = (int) table.getValue("ID", i);
 						ArrayList<? extends Trajectory> cTracks = TraJClassifier_.getInstance().getClassifiedTrajectories();
 						Trajectory t = TrajectoryUtil.getTrajectoryByID(cTracks, id);
 						selectedTrajectories.add(t);
