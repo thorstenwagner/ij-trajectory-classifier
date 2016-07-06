@@ -253,6 +253,7 @@ public class TraJClassifier_ implements PlugIn {
 		 * Visualization 
 		 */
 		
+		//Trajectories
 		Overlay ov = new Overlay(); 
 		for(int i = 0; i < classifiedTrajectories.size(); i++){
 			Subtrajectory tr =  classifiedTrajectories.get(i);
@@ -269,15 +270,17 @@ public class TraJClassifier_ implements PlugIn {
 			}
 		}
 		
+		//Classes
 		Set<String> classes = mapTypeToColor.keySet();
 
 		Iterator<String> it = classes.iterator();
 		int y = 5;
 		TextRoi.setFont("TimesRoman", 12, Font.PLAIN);
+		
 		while(it.hasNext()){
 			String type = it.next();
 			TextRoi troi = new TextRoi(5, y, type);
-
+			troi.setFillColor(Color.DARK_GRAY);
 			troi.setStrokeColor(mapTypeToColor.get(type));
 			ov.add(troi);
 			y = y + 10;
