@@ -70,7 +70,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 		<dependency>
 	    	<groupId>org.renjin</groupId>
 	    	<artifactId>renjin-script-engine</artifactId>
-	    	<version>0.8.2135</version>
+	    	<version>0.8.2136</version>
 	 	</dependency>
 		<dependency>
 		    <groupId>org.renjin.cran</groupId>
@@ -80,7 +80,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
   		<dependency>
 	   	 	<groupId>org.renjin.cran</groupId>
 	    	<artifactId>plyr</artifactId>
-	  	  	<version>1.8.3-renjin-10</version>
+	  	  	<version>1.8.4-b1</version>
 	    </dependency>
 	    <dependency>
 		    <groupId>com.opencsv</groupId>
