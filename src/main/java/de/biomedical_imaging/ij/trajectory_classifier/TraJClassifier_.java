@@ -87,6 +87,7 @@ public class TraJClassifier_ implements PlugIn {
 		minDiffusionCoefficient=0;
 		pixelsize=0.166;
 		timelag=1.0/30;
+		showID = true;
 		instance = this;
 	}
 	
@@ -260,10 +261,10 @@ public class TraJClassifier_ implements PlugIn {
 
 			ArrayList<Roi> prois = null;
 			if(pixelsize>0.000001){
-				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()),pixelsize);
+				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()),showID,pixelsize);
 				
 			}else{
-				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()));
+				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()), showID);
 			}
 			for (Roi r : prois) {
 				ov.add(r);
@@ -283,7 +284,7 @@ public class TraJClassifier_ implements PlugIn {
 			troi.setFillColor(Color.DARK_GRAY);
 			troi.setStrokeColor(mapTypeToColor.get(type));
 			ov.add(troi);
-			y = y + 10;
+			y = y + 20;
 
 		}
 

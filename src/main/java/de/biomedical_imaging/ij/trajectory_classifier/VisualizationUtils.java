@@ -36,11 +36,11 @@ import java.util.ArrayList;
 
 public class VisualizationUtils {
 	
-	public static ArrayList<Roi> generateVisualizationRoisFromTrack(Subtrajectory t, Color c){
-		return generateVisualizationRoisFromTrack(t, c, 1);
+	public static ArrayList<Roi> generateVisualizationRoisFromTrack(Subtrajectory t, Color c, boolean showID){
+		return generateVisualizationRoisFromTrack(t, c, showID,1);
 	}
 	
-	public static ArrayList<Roi> generateVisualizationRoisFromTrack(Subtrajectory t, Color c, double pixelsize){
+	public static ArrayList<Roi> generateVisualizationRoisFromTrack(Subtrajectory t, Color c, boolean showID, double pixelsize){
 		ArrayList<Roi> proi = new ArrayList<Roi>();
 		FloatPolygon p = new FloatPolygon();
 		double sumx = 0;
@@ -60,14 +60,14 @@ public class VisualizationUtils {
 			pr.setStrokeColor(c);
 			pr.setPosition(t.getRelativeStartTimepoint()+i+1);
 			proi.add(pr);
-			
-			TextRoi troi = new TextRoi(sumx/to, sumy/to," "+t.getID()+" ");
-			troi.setPosition(t.getRelativeStartTimepoint()+i+1);
-			troi.setFillColor(Color.BLACK);
-			troi.setStrokeColor(c);
-			troi.setAntialiased(true);
-			
-			proi.add(troi);
+			if(showID){
+				TextRoi troi = new TextRoi(sumx/to, sumy/to," "+t.getID()+" ");
+				troi.setPosition(t.getRelativeStartTimepoint()+i+1);
+				troi.setFillColor(Color.BLACK);
+				troi.setStrokeColor(c);
+				troi.setAntialiased(true);
+				proi.add(troi);
+			}
 		}
 		return proi;
 	}
