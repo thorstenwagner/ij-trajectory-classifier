@@ -75,7 +75,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 		<dependency>
 		    <groupId>org.renjin.cran</groupId>
 		    <artifactId>randomForest</artifactId>
-		    <version>4.6-12-b9</version>
+		    <version>4.6-12-b29</version>
   		</dependency>
   		<dependency>
 	   	 	<groupId>org.renjin.cran</groupId>
