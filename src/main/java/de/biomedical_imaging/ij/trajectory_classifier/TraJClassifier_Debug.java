@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
-/*
+
 package de.biomedical_imaging.ij.trajectory_classifier;
 
 import ij.IJ;
@@ -402,4 +402,3 @@ public class TraJClassifier_Debug {
 	
 
 }
-*/
