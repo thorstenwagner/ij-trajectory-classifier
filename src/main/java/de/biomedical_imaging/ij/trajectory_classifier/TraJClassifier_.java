@@ -124,6 +124,7 @@ public class TraJClassifier_ implements PlugIn {
 			GenericDialog gd = new GenericDialog("Parameters Classification");
 		
 			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
+			System.out.println("window: " + windowSizeClassification);
 			gd.addSlider("Windowsize", 1, 200, windowSizeClassification);
 			gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", minDiffusionCoefficient, 0);
 			gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
@@ -141,7 +142,7 @@ public class TraJClassifier_ implements PlugIn {
 			
 			// Save settings
 			Prefs.set("trajclass.minTrackLength", minTrackLength);
-			Prefs.set("trajclass.windowSize", windowSizeClassification);
+			Prefs.set("trajclass.windowSize", windowSizeClassification*2);
 			Prefs.set("trajclass.minDC", minDiffusionCoefficient);
 			Prefs.set("trajclass.pixelsize", pixelsize);
 			Prefs.set("trajclass.framerate", 1/timelag);
@@ -314,6 +315,13 @@ public class TraJClassifier_ implements PlugIn {
 		rtables.put("STALLED", new TraJResultsTable());
 		rtables.put("NONE", new TraJResultsTable());
 		
+		HashMap<String, Integer> itable = new HashMap<String, Integer>();
+		itable.put("DIRECTED/ACTIVE", 0);
+		itable.put("NORM. DIFFUSION", 1);
+		itable.put("SUBDIFFUSION", 2);
+		itable.put("CONFINED", 3);
+		itable.put("STALLED", 4);
+		itable.put("NONE",5);
 		
 		IJ.log("Fill results table");
 		for (int i = 0; i < classifiedTrajectories.size(); i++) {
@@ -332,19 +340,20 @@ public class TraJClassifier_ implements PlugIn {
 
 				AbstractTrajectoryFeature dcEstim=null;
 				double dc =0;
-				switch (t.getType()) {
-				case "DIRECTED/ACTIVE":
+				int key = itable.get(t.getType());
+				switch (key) {//(t.getType()) {
+				case 0://"DIRECTED/ACTIVE":
 					dcEstim = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,t.size()-1);
 					dc = dcEstim.evaluate()[0];
 					rt.addValue("D", String.format("%6.3e",dc));
 					
 					break;
-				case "NORM. DIFFUSION":
+				case 1://"NORM. DIFFUSION":
 					dcEstim = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
 					dc = dcEstim.evaluate()[0];
 					rt.addValue("D", String.format("%6.3e",dc));
 					break;
-				case "CONFINED":
+				case 3://"CONFINED":
 					AbstractDiffusionCoefficientEstimator dcEst = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,3);
 					ConfinedDiffusionParametersFeature confp = new ConfinedDiffusionParametersFeature(t,timelag,dcEst,FitMethod.SIMPLEX);
 					double[] p = confp.evaluate();
@@ -354,13 +363,13 @@ public class TraJClassifier_ implements PlugIn {
 					rt.addValue("B (CONF SHAPE)", p[3]);
 					rt.addValue("D", String.format("%6.3e",p[1]));
 					break;
-				case "SUBDIFFUSION":
+				case 2://"SUBDIFFUSION":
 					PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
 					double res[] = pwf.evaluate();
 					dc = res[1];
 					rt.addValue("D", String.format("%6.3e",dc));
 					break;
-				case "NONE":
+				case 5://"NONE":
 					break;
 				default:
 					break;
