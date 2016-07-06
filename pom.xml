@@ -9,7 +9,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<version>0.6.0</version>
 	<packaging>jar</packaging>
 
-	<name>Trajectory Classifier</name>
+	<name>Trajectory classifier</name>
 	<url>https://github.com/thorstenwagner/ij-trajectory-classifier</url>
 	
 	<licenses>
@@ -75,7 +75,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 		<dependency>
 		    <groupId>org.renjin.cran</groupId>
 		    <artifactId>randomForest</artifactId>
-		    <version>4.6-12-b29</version>
+		    <version>4.6-12-b9</version>
   		</dependency>
   		<dependency>
 	   	 	<groupId>org.renjin.cran</groupId>
@@ -116,6 +116,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	                 <configuration>
 				        <reuseForks>false</reuseForks>
 				        <forkCount>1</forkCount>
+				         <enableAssertions>false</enableAssertions>
 				    </configuration>
 	            </plugin>
 	        </plugins>

@@ -45,8 +45,6 @@ public class RRFClassifierRenjinTest {
 
 	@Test
 	public void Classify_FreeDiffusionSingleTrack_Test() {
-		
-		
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
 		double timelag = 1.0/30;

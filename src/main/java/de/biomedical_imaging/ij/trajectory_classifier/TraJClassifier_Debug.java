@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
 
+/*
 package de.biomedical_imaging.ij.trajectory_classifier;
 
 import ij.IJ;
@@ -30,7 +31,7 @@ import ij.ImagePlus;
 import ij.ImageStack;
 import ij.measure.CurveFitter;
 import ij.process.ByteProcessor;
-import ij.process.ImageProcessor;
+
 
 import java.awt.Color;
 import java.util.HashMap;
@@ -39,32 +40,24 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
 
-import javax.swing.JFileChooser;
-import javax.swing.filechooser.FileNameExtensionFilter;
 
 import org.apache.commons.lang3.ArrayUtils;
-import org.apache.commons.math.stat.descriptive.moment.Mean;
-import org.apache.commons.math.stat.descriptive.moment.StandardDeviation;
-import org.apache.commons.math.stat.descriptive.rank.Max;
-import org.apache.commons.math.stat.descriptive.rank.Min;
+
 import org.apache.commons.math3.stat.StatUtils;
-import org.apache.commons.math3.stat.descriptive.rank.Median;
 import org.knowm.xchart.Chart;
 import org.knowm.xchart.Series;
 import org.knowm.xchart.SeriesMarker;
 import org.knowm.xchart.SwingWrapper;
 
-import de.biomedical_imaging.ij.trajectory_classifier.FeatureWorker.EVALTYPE;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.VisualizationUtils;
-import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.CovarianceDiffusionCoefficientEstimator;
+
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
 import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
 import de.biomedical_imaging.traJ.features.AsymmetryFeature;
-import de.biomedical_imaging.traJ.features.ConfinedDiffusionParametersFeature;
 import de.biomedical_imaging.traJ.features.EfficiencyFeature;
 import de.biomedical_imaging.traJ.features.ElongationFeature;
 import de.biomedical_imaging.traJ.features.FractalDimensionFeature;
@@ -81,7 +74,6 @@ import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 import de.biomedical_imaging.traJ.simulation.AbstractSimulator;
-import de.biomedical_imaging.traJ.simulation.ActiveTransportSimulator;
 import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionWMSimulation;
 import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
 import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
@@ -410,3 +402,4 @@ public class TraJClassifier_Debug {
 	
 
 }
+*/
