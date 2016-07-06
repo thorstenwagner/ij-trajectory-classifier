@@ -96,7 +96,6 @@ public class TraJResultsTable extends ResultsTable {
 							double[] res =regest.evaluate();
 							double dc = res[0];
 							double intercept = res[2];
-							System.out.println("RES2 " + res[2]);
 							c = VisualizationUtils.getMSDLineWithFreeModelChart(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), dc, intercept);
 							charts.add(c);
 						}else{

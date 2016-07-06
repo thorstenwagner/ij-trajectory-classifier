@@ -79,7 +79,6 @@ import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
 import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.FreeDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.SimulationUtil;
-import de.biomedical_imaging.traj.math.PowerLawCurveFit.FitMethod;
 
 public class TraJClassifier_Debug {
 
@@ -103,7 +102,7 @@ public class TraJClassifier_Debug {
 		ArrayList<Chart> lc = new ArrayList<Chart>();
 		Chart c = VisualizationUtils.getTrajectoryChart(tr);
 		lc.add(c);
-		//t.add(tr);
+		t.add(tr);
 		
 		
 		sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, 2000, 0.5);
@@ -112,7 +111,6 @@ public class TraJClassifier_Debug {
 		t.add(TrajectoryUtil.concactTrajectorie(tr, tr2));
 		
 		double radius_confined = Math.sqrt(-1*Math.log(0.9)*(4*diffusioncoefficient*60*timelag));
-		System.out.println("Radius:" + radius_confined*1000);
 		sim = new ConfinedDiffusionSimulator(diffusioncoefficient,timelag,radius_confined,2,500);
 		tr = sim.generateTrajectory();
 		tr.offset(250, 250, 0);
@@ -152,7 +150,7 @@ public class TraJClassifier_Debug {
 		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
 		
 		f  = new RegressionDiffusionCoefficientEstimator(t, 1.0/timelag, 1, 3);
-		PowerLawFeature f2 = new PowerLawFeature(t, 1, t.size()/3, FitMethod.SIMPLEX,0.5,f.evaluate()[0]);
+		PowerLawFeature f2 = new PowerLawFeature(t, 1, t.size()/3,0.5,f.evaluate()[0]);
 		System.out.println(f.getShortName()+": " + f2.evaluate()[0]);
 
 	//	StandardDeviationDirectionFeature sdf = new StandardDeviationDirectionFeature(t, timelagForDirectionDeviationLong);

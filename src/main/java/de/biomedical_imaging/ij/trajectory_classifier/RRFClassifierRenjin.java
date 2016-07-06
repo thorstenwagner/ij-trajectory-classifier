@@ -51,7 +51,6 @@ import de.biomedical_imaging.traJ.features.ShortTimeLongTimeDiffusioncoefficentR
 import de.biomedical_imaging.traJ.features.SkewnessFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
-import de.biomedical_imaging.traj.math.PowerLawCurveFit.FitMethod;
 
 public class RRFClassifierRenjin extends AbstractClassifier  {
 
@@ -130,7 +129,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			pool.submit(new FeatureWorker(fd, i,fdF, EVALTYPE.FIRST));
 			
 			RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1.0/TraJClassifier_.getInstance().getTimelag(), 1, 3);
-			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3, FitMethod.SIMPLEX,0.5,regest.evaluate()[0]);
+			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3,0.5,regest.evaluate()[0]);
 			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
 
 			Asymmetry3Feature asymf3 = new Asymmetry3Feature(t);

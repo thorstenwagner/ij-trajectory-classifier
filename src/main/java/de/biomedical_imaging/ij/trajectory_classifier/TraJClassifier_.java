@@ -56,7 +56,6 @@ import de.biomedical_imaging.traJ.features.PowerLawFeature;
 import de.biomedical_imaging.traJ.features.ShortTimeLongTimeDiffusioncoefficentRatio;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
-import de.biomedical_imaging.traj.math.ConfinedDiffusionMSDCurveFit.FitMethod;
 import ij.IJ;
 import ij.Prefs;
 import ij.gui.GenericDialog;
@@ -359,7 +358,7 @@ public class TraJClassifier_ implements PlugIn {
 					break;
 				case 3://"CONFINED":
 					AbstractDiffusionCoefficientEstimator dcEst = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,3);
-					ConfinedDiffusionParametersFeature confp = new ConfinedDiffusionParametersFeature(t,timelag,dcEst,FitMethod.SIMPLEX);
+					ConfinedDiffusionParametersFeature confp = new ConfinedDiffusionParametersFeature(t,timelag,dcEst);
 					double[] p = confp.evaluate();
 					dc = p[1];
 					rt.addValue("CONF. SIZE", p[0]);
