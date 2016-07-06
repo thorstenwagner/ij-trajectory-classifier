@@ -100,6 +100,7 @@ public class WeightedWindowedClassificationProcess {
 			}
 		}
 		
+		
 		return types;
 	}
 	

@@ -74,6 +74,7 @@ public class TraJClassifier_ implements PlugIn {
 	private double minDiffusionCoefficient;
 	private double pixelsize;
 	private boolean showID;
+	private boolean showOverviewClasses;
 	private ArrayList<Subtrajectory> classifiedTrajectories;
 	private ArrayList<Trajectory> tracksToClassify;
 	//private ArrayList<Trajectory> tracks 
@@ -119,6 +120,7 @@ public class TraJClassifier_ implements PlugIn {
 			pixelsize = Prefs.get("trajclass.pixelsize", 0.166);
 			timelag = 1.0/Prefs.get("trajclass.framerate",30);
 			showID = Prefs.getBoolean("trajclass.showID", true);
+			showOverviewClasses = Prefs.getBoolean("trajclass.showOverviewClasses", true);
 			
 			//Show GUI
 			GenericDialog gd = new GenericDialog("Parameters Classification");
@@ -130,8 +132,9 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
 			gd.addNumericField("Framerate", 1/timelag, 0);
 			gd.addCheckbox("Show IDs", showID);
+			gd.addCheckbox("Show overview classes", showOverviewClasses);
 			gd.addMessage("* Set to zero if the imported data is already correctly scaled.");
-			gd.addHelp("www.imagej.net");
+			gd.addHelp("http://forum.imagej.net");
 			gd.showDialog();
 			minTrackLength = gd.getNextNumber();
 			windowSizeClassification = (int) (gd.getNextNumber()/2);
@@ -139,6 +142,7 @@ public class TraJClassifier_ implements PlugIn {
 			pixelsize = gd.getNextNumber();
 			timelag = 1/gd.getNextNumber();
 			showID = gd.getNextBoolean();
+			showOverviewClasses = gd.getNextBoolean();
 			
 			// Save settings
 			Prefs.set("trajclass.minTrackLength", minTrackLength);
@@ -147,6 +151,7 @@ public class TraJClassifier_ implements PlugIn {
 			Prefs.set("trajclass.pixelsize", pixelsize);
 			Prefs.set("trajclass.framerate", 1/timelag);
 			Prefs.set("trajclass.showID", showID);
+			Prefs.set("trajclass.showOverviewClasses", showOverviewClasses);
 		}
 		/*
 		 * Import Data
@@ -199,13 +204,16 @@ public class TraJClassifier_ implements PlugIn {
 		 * Classification and segmentation
 		 */
 		classifiedTrajectories = new ArrayList<Subtrajectory>();
+		int subidcounter = 1;
 		for (Trajectory track : minLengthTracks) {
 			j++;
 			IJ.showProgress(j, minLengthTracks.size());
 
 			String[] classes = wcp.windowedClassification(track, rrf, windowSizeClassification);
-
+			
 			Subtrajectory tr = new Subtrajectory(track,2);
+			tr.setID(subidcounter);
+			subidcounter++;
 			tr.add(track.get(0).x, track.get(0).y, 0);
 			
 			String prevCls = classes[0];
@@ -221,6 +229,8 @@ public class TraJClassifier_ implements PlugIn {
 					
 					classifiedTrajectories.add(tr);
 					tr = new Subtrajectory(track,2);
+					tr.setID(subidcounter);
+					subidcounter++;
 					tr.setRelativStartTimepoint(start+i);
 					tr.add(track.get(i).x, track.get(i).y,0);
 					prevCls = classes[i];
@@ -271,24 +281,26 @@ public class TraJClassifier_ implements PlugIn {
 		}
 		
 		//Classes
-		Set<String> classes = mapTypeToColor.keySet();
-
-		Iterator<String> it = classes.iterator();
-		int y = 5;
-		TextRoi.setFont("TimesRoman", 12, Font.PLAIN);
-		
-		while(it.hasNext()){
-			String type = it.next();
-			TextRoi troi = new TextRoi(5, y, type);
-			troi.setFillColor(Color.DARK_GRAY);
-			troi.setStrokeColor(mapTypeToColor.get(type));
-			ov.add(troi);
-			y = y + 20;
-
+		if(showOverviewClasses) {
+			Set<String> classes = mapTypeToColor.keySet();
+	
+			Iterator<String> it = classes.iterator();
+			int y = 5;
+			TextRoi.setFont("TimesRoman", 12, Font.PLAIN);
+			
+			while(it.hasNext()){
+				String type = it.next();
+				TextRoi troi = new TextRoi(5, y, type);
+				troi.setFillColor(Color.DARK_GRAY);
+				troi.setStrokeColor(mapTypeToColor.get(type));
+				ov.add(troi);
+				y = y + 20;
+	
+			}
 		}
-
-		IJ.getImage().setOverlay(ov);
-		IJ.getImage().updateAndRepaintWindow();
+			IJ.getImage().setOverlay(ov);
+			IJ.getImage().updateAndRepaintWindow();
+		
 		
 		/*
 		 * Export classified trajectories

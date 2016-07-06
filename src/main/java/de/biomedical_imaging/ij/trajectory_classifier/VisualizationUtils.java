@@ -60,8 +60,10 @@ public class VisualizationUtils {
 			pr.setStrokeColor(c);
 			pr.setPosition(t.getRelativeStartTimepoint()+i+1);
 			proi.add(pr);
+			
 			if(showID){
-				TextRoi troi = new TextRoi(sumx/to, sumy/to," "+t.getID()+" ");
+				long parentID = t.getParent().getID();
+				TextRoi troi = new TextRoi(sumx/to, sumy/to," "+parentID+":"+t.getID()+" ");
 				troi.setPosition(t.getRelativeStartTimepoint()+i+1);
 				troi.setFillColor(Color.BLACK);
 				troi.setStrokeColor(c);
