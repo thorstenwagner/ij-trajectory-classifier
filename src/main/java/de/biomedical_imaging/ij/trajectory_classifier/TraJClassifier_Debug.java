@@ -123,7 +123,7 @@ public class TraJClassifier_Debug {
 		}
 		
 		ImagePlus img = new ImagePlus("", is);
-		img.show();
+		//img.show();
 		
 		TraJClassifier_ tclass = new TraJClassifier_();
 		tclass.setTracksToClassify(t);

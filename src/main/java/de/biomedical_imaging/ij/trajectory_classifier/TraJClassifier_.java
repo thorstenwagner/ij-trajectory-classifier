@@ -58,6 +58,7 @@ import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 import ij.IJ;
 import ij.Prefs;
+import ij.WindowManager;
 import ij.gui.GenericDialog;
 import ij.gui.Overlay;
 import ij.gui.Roi;
@@ -107,6 +108,32 @@ public class TraJClassifier_ implements PlugIn {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
+		/*
+		 * Import Data
+		 */
+		if(!arg.contains("DEBUG")){
+			OpenDialog open = new OpenDialog("Choose the TrackMate xml file");
+			String filepath = open.getPath();
+			TrackMateImporter tMateImport = new TrackMateImporter();
+			tracksToClassify = tMateImport.importTrackMateXML(filepath);
+		}
+		int maxNumberOfPositions = 0;
+		for(int i = 0; i < tracksToClassify.size(); i++){
+			if(tracksToClassify.get(i).size()> maxNumberOfPositions){
+				maxNumberOfPositions = tracksToClassify.get(i).size();
+			}
+		}
+		boolean visualize = true;
+		
+		if(WindowManager.getCurrentImage()==null || (IJ.getImage().getNFrames()<maxNumberOfPositions && IJ.getImage().getNSlices()<maxNumberOfPositions)){
+		
+				IJ.showMessage("Your image does not contain enough frames for visualization."
+						+ "Therefore visualization will be deactivated. \n "
+						+ "For visualization please open the corresponding image stack to the trackmate file");
+				visualize = false;
+			
+		}
 
 		/*
 		 * GUI
@@ -153,15 +180,7 @@ public class TraJClassifier_ implements PlugIn {
 			Prefs.set("trajclass.showID", showID);
 			Prefs.set("trajclass.showOverviewClasses", showOverviewClasses);
 		}
-		/*
-		 * Import Data
-		 */
-		if(!arg.contains("DEBUG")){
-			OpenDialog open = new OpenDialog("Choose the TrackMate xml file");
-			String filepath = open.getPath();
-			TrackMateImporter tMateImport = new TrackMateImporter();
-			tracksToClassify = tMateImport.importTrackMateXML(filepath);
-		}
+
 		
 		/*
 		 * Scaling
@@ -262,45 +281,50 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Visualization 
 		 */
-		
-		//Trajectories
-		Overlay ov = new Overlay(); 
-		for(int i = 0; i < classifiedTrajectories.size(); i++){
-			Subtrajectory tr =  classifiedTrajectories.get(i);
+		if (visualize) {
+			// Trajectories
+			Overlay ov = new Overlay();
+			for (int i = 0; i < classifiedTrajectories.size(); i++) {
+				Subtrajectory tr = classifiedTrajectories.get(i);
 
-			ArrayList<Roi> prois = null;
-			if(pixelsize>0.000001){
-				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()),showID,pixelsize);
-				
-			}else{
-				prois = VisualizationUtils.generateVisualizationRoisFromTrack(tr, mapTypeToColor.get(tr.getType()), showID);
+				ArrayList<Roi> prois = null;
+				if (pixelsize > 0.000001) {
+					prois = VisualizationUtils
+							.generateVisualizationRoisFromTrack(tr,
+									mapTypeToColor.get(tr.getType()), showID,
+									pixelsize);
+
+				} else {
+					prois = VisualizationUtils
+							.generateVisualizationRoisFromTrack(tr,
+									mapTypeToColor.get(tr.getType()), showID);
+				}
+				for (Roi r : prois) {
+					ov.add(r);
+				}
 			}
-			for (Roi r : prois) {
-				ov.add(r);
+
+			// Classes
+			if (showOverviewClasses) {
+				Set<String> classes = mapTypeToColor.keySet();
+
+				Iterator<String> it = classes.iterator();
+				int y = 5;
+				TextRoi.setFont("TimesRoman", 12, Font.PLAIN);
+
+				while (it.hasNext()) {
+					String type = it.next();
+					TextRoi troi = new TextRoi(5, y, type);
+					troi.setFillColor(Color.DARK_GRAY);
+					troi.setStrokeColor(mapTypeToColor.get(type));
+					ov.add(troi);
+					y = y + 20;
+
+				}
 			}
-		}
-		
-		//Classes
-		if(showOverviewClasses) {
-			Set<String> classes = mapTypeToColor.keySet();
-	
-			Iterator<String> it = classes.iterator();
-			int y = 5;
-			TextRoi.setFont("TimesRoman", 12, Font.PLAIN);
-			
-			while(it.hasNext()){
-				String type = it.next();
-				TextRoi troi = new TextRoi(5, y, type);
-				troi.setFillColor(Color.DARK_GRAY);
-				troi.setStrokeColor(mapTypeToColor.get(type));
-				ov.add(troi);
-				y = y + 20;
-	
-			}
-		}
 			IJ.getImage().setOverlay(ov);
 			IJ.getImage().updateAndRepaintWindow();
-		
+		}
 		
 		/*
 		 * Export classified trajectories
