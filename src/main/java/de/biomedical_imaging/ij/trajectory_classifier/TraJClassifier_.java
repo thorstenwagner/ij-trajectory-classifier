@@ -166,6 +166,9 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addMessage("* Set to zero if the imported data is already correctly scaled.");
 			gd.addHelp("http://forum.imagej.net");
 			gd.showDialog();
+			if(gd.wasCanceled()){
+				return;
+			}
 			minTrackLength = gd.getNextNumber();
 			windowSizeClassification = (int) (gd.getNextNumber()/2);
 			minDiffusionCoefficient = gd.getNextNumber();
