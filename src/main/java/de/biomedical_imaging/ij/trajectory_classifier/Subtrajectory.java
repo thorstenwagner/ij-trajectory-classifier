@@ -24,6 +24,8 @@ SOFTWARE.
 
 package de.biomedical_imaging.ij.trajectory_classifier;
 
+import java.util.ArrayList;
+
 import de.biomedical_imaging.traJ.Trajectory;
 
 public class Subtrajectory extends Trajectory {
@@ -46,6 +48,18 @@ public class Subtrajectory extends Trajectory {
 	
 	public Trajectory getParent(){
 		return parent;
+	}
+	
+	public static ArrayList<Subtrajectory> getTracksWithSameParant(ArrayList<Subtrajectory> tracks, long parentid){
+		ArrayList<Subtrajectory> res = new ArrayList<Subtrajectory>();
+		
+		for (Subtrajectory sub : tracks) {
+			if(sub.getParent().getID()==parentid){
+				res.add(sub);
+			}
+		}
+		
+		return res;
 	}
 
 }

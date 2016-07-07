@@ -312,15 +312,7 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Fill results table
 		 */
-		ResultsTable parents = new ResultsTable();
-		for(int i = 0; i < minLengthTracks.size(); i++){
-			parents.incrementCounter();
-			Trajectory t = minLengthTracks.get(i);
-			parents.addValue("ID", t.getID());
-			parents.addValue("LENGTH", t.size());
-			parents.addValue("START", t.getRelativeStartTimepoint());
-			parents.addValue("END", t.getRelativeStartTimepoint()+t.size()-1);
-		}
+		
 		
 		HashMap<String, TraJResultsTable> rtables = new HashMap<String, TraJResultsTable>();
 		rtables.put("DIRECTED/ACTIVE", new TraJResultsTable());
@@ -338,7 +330,6 @@ public class TraJClassifier_ implements PlugIn {
 				
 				rt.incrementCounter();
 				rt.addValue("ID", t.getID());
-				IJ.log("ID: " + t.getID());
 				rt.addValue("PARENT-ID", t.getParent().getID());
 				rt.addValue("LENGTH", t.size());
 				rt.addValue("START", t.getRelativeStartTimepoint());
@@ -380,9 +371,11 @@ public class TraJClassifier_ implements PlugIn {
 				default:
 					break;
 				}
+				
 				if(dc<minDiffusionCoefficient){
 					t.setType("STALLED");
 				}
+				
 				AbstractTrajectoryFeature f = new CenterOfGravityFeature(t);
 				double cog_x = f.evaluate()[0];
 				double cog_y = f.evaluate()[1];
@@ -437,10 +430,58 @@ public class TraJClassifier_ implements PlugIn {
 					rt.addValue("LTSTRatio", v);
 
 				}
-				
-				
+
 		}
 		
+		ResultsTable parents = new ResultsTable();
+		for(int i = 0; i < minLengthTracks.size(); i++){
+			parents.incrementCounter();
+			Trajectory t = minLengthTracks.get(i);
+			parents.addValue("ID", t.getID());
+			parents.addValue("LENGTH", t.size());
+			parents.addValue("START", t.getRelativeStartTimepoint());
+			parents.addValue("END", t.getRelativeStartTimepoint()+t.size()-1);
+			int subCount =0;
+			int normCount =0;
+			int directedCount =0;
+			int confCount=0;
+			int stalledCount=0;
+			int noneCount =0;
+			ArrayList<Subtrajectory> sameParent = Subtrajectory.getTracksWithSameParant(classifiedTrajectories, t.getID());
+			for (Subtrajectory sub : sameParent) {
+				switch (sub.getType()) {
+				case "DIRECTED/ACTIVE":
+					directedCount+=sub.size();
+					break;
+				case "NORM. DIFFUSION":
+					normCount+=sub.size();
+					break;
+				case "CONFINED":
+					confCount+=sub.size();
+					break;
+				case "SUBDIFFUSION":
+					subCount+=sub.size();
+					break;
+				case "STALLED":
+					stalledCount+=sub.size();
+					break;
+				case "NONE":
+					noneCount+=sub.size();
+					break;
+				default:
+					break;
+				}
+			}
+			parents.addValue("#POS_NORM", normCount);
+			parents.addValue("#POS_SUB", subCount);
+			parents.addValue("#POS_CONF", confCount);
+			parents.addValue("#POS_DIRECTED", directedCount);
+			parents.addValue("#POS_STALLED", stalledCount);
+			parents.addValue("#POS_NONE", noneCount);
+		}
+		
+		
+		// show tables
 		parents.show("Parents");
 		Iterator<String> rtIt = rtables.keySet().iterator();
 		while(rtIt.hasNext()){
