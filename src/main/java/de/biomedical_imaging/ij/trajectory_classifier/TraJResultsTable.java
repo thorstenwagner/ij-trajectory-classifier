@@ -24,6 +24,7 @@ SOFTWARE.
 
 package de.biomedical_imaging.ij.trajectory_classifier;
 
+import java.awt.Frame;
 import java.awt.Menu;
 import java.awt.MenuItem;
 import java.awt.event.ActionEvent;
@@ -66,9 +67,9 @@ public class TraJResultsTable extends ResultsTable {
 			public void actionPerformed(ActionEvent e) {
 			//	WindowManager.getFrame(windowTitle)
 				//WindowManager.getFrame(windowTitle)
-				
-				if (WindowManager.getFrame(name).getComponent(0) instanceof TextPanel){
-					TextPanel p = (TextPanel) WindowManager.getFrame(name).getComponent(0);
+				Frame f = (Frame)WindowManager.getActiveWindow();
+				if (f.getComponent(0) instanceof TextPanel){
+					TextPanel p = (TextPanel) f.getComponent(0);
 				
 					int selectionStart = p.getSelectionStart();
 					int selectionEnd = p.getSelectionEnd();
