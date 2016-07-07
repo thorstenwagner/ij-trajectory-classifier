@@ -65,8 +65,7 @@ public class TraJResultsTable extends ResultsTable {
 			
 			@Override
 			public void actionPerformed(ActionEvent e) {
-			//	WindowManager.getFrame(windowTitle)
-				//WindowManager.getFrame(windowTitle)
+
 				Frame f = (Frame)WindowManager.getActiveWindow();
 				if (f.getComponent(0) instanceof TextPanel){
 					TextPanel p = (TextPanel) f.getComponent(0);
@@ -124,8 +123,10 @@ public class TraJResultsTable extends ResultsTable {
 			
 			@Override
 			public void actionPerformed(ActionEvent e) {
-				if (WindowManager.getFrame(name).getComponent(0) instanceof TextPanel){
-					TextPanel p = (TextPanel) WindowManager.getFrame(name).getComponent(0);
+				Frame f = (Frame)WindowManager.getActiveWindow();
+				
+				if (f.getComponent(0) instanceof TextPanel){
+					TextPanel p = (TextPanel)f.getComponent(0);
 				
 					int selectionStart = p.getSelectionStart();
 					int selectionEnd = p.getSelectionEnd();
@@ -164,7 +165,7 @@ public class TraJResultsTable extends ResultsTable {
 			}
 		});
 		
-		Menu traJ = new Menu("TraJ");
+		Menu traJ = new Menu("Trajectory classifier");
 		traJ.add(plotSelectedTrajectory);
 		traJ.add(exportTrajectories);
 				//ResultsTable.getResultsWindow().getMenuBar().
