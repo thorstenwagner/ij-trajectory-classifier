@@ -115,6 +115,9 @@ public class TraJClassifier_ implements PlugIn {
 		if(!arg.contains("DEBUG")){
 			OpenDialog open = new OpenDialog("Choose the TrackMate xml file");
 			String filepath = open.getPath();
+			if(filepath==null){
+				return;
+			}
 			TrackMateImporter tMateImport = new TrackMateImporter();
 			tracksToClassify = tMateImport.importTrackMateXML(filepath);
 		}
