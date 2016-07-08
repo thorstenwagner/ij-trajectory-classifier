@@ -40,6 +40,7 @@ import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.VisualizationUtils;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
+import de.biomedical_imaging.traJ.features.ActiveTransportParametersFeature;
 import de.biomedical_imaging.traJ.features.ConfinedDiffusionParametersFeature;
 import de.biomedical_imaging.traJ.features.PowerLawFeature;
 import ij.IJ;
@@ -79,24 +80,30 @@ public class TraJResultsTable extends ResultsTable {
 						Trajectory t = TrajectoryUtil.getTrajectoryByID(cTracks, id);
 						Chart c = VisualizationUtils.getTrajectoryChart("Trajectory with ID " + id,t);
 						charts.add(c);
+						double timelag = TraJClassifier_.getInstance().getTimelag();
 						if(t.getType().equals("SUBDIFFUSION")){
 							PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
 							double[] res = pwf.evaluate();
-							c = VisualizationUtils.getMSDLineWithPowerModelChart(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), res[0], res[1]);
+							c = VisualizationUtils.getMSDLineWithPowerModelChart(t, 1, t.size()/3, timelag, res[0], res[1]);
 							charts.add(c);
 							
 
 						}else if(t.getType().equals("CONFINED")){
-							ConfinedDiffusionParametersFeature cfeature = new ConfinedDiffusionParametersFeature(t, TraJClassifier_.getInstance().getTimelag());
+							ConfinedDiffusionParametersFeature cfeature = new ConfinedDiffusionParametersFeature(t, timelag);
 							double[] res= cfeature.evaluate();
-							c = VisualizationUtils.getMSDLineWithConfinedModelChart(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), res[0], res[2], res[3], res[1]);
+							c = VisualizationUtils.getMSDLineWithConfinedModelChart(t, 1, t.size()/3, timelag, res[0], res[2], res[3], res[1]);
 							charts.add(c);
 						}else if(t.getType().equals("NORM. DIFFUSION")){
-							RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1/TraJClassifier_.getInstance().getTimelag(), 1, t.size()/3);
+							RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1/timelag, 1, t.size()/3);
 							double[] res =regest.evaluate();
 							double dc = res[0];
 							double intercept = res[2];
-							c = VisualizationUtils.getMSDLineWithFreeModelChart(t, 1, t.size()/3, TraJClassifier_.getInstance().getTimelag(), dc, intercept);
+							c = VisualizationUtils.getMSDLineWithFreeModelChart(t, 1, t.size()/3, timelag, dc, intercept);
+							charts.add(c);
+						}else if(t.getType().equals("DIRECTED/ACTIVE")){
+							ActiveTransportParametersFeature apf = new ActiveTransportParametersFeature(t, timelag);
+							double[] ares = apf.evaluate();
+							c = VisualizationUtils.getMSDLineWithActiveTransportModelChart(t, 1, t.size()/3, timelag, ares[0],ares[1]);
 							charts.add(c);
 						}else{
 							c = VisualizationUtils.getMSDLineChart(t, 1, t.size()/3);
@@ -136,7 +143,7 @@ public class TraJResultsTable extends ResultsTable {
 					}
 				
 					ArrayList<Trajectory> selectedTrajectories = new ArrayList<Trajectory>();
-					for( int i = selectionStart; i < selectionEnd; i++){
+					for( int i = selectionStart; i <= selectionEnd; i++){
 						int id = (int) table.getValue("ID", i);
 						ArrayList<? extends Trajectory> cTracks = TraJClassifier_.getInstance().getClassifiedTrajectories();
 						Trajectory t = TrajectoryUtil.getTrajectoryByID(cTracks, id);

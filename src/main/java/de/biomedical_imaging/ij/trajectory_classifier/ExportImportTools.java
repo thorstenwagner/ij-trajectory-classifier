@@ -72,6 +72,7 @@ public class ExportImportTools {
 				double nextY = Double.parseDouble(nextLine[2]);
 				String nextClass = nextLine[3];
 				if(nextID==lastID){
+					System.out.println();
 					t.add(nextX, nextY, 0);
 					lastID=nextID;
 				}else{

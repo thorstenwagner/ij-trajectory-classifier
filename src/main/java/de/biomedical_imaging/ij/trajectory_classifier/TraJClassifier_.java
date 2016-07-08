@@ -29,11 +29,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 import org.apache.commons.math3.stat.StatUtils;
@@ -43,6 +47,7 @@ import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.AbstractDiffusio
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.CovarianceDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
+import de.biomedical_imaging.traJ.features.ActiveTransportParametersFeature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
 import de.biomedical_imaging.traJ.features.CenterOfGravityFeature;
 import de.biomedical_imaging.traJ.features.ConfinedDiffusionParametersFeature;
@@ -56,6 +61,7 @@ import de.biomedical_imaging.traJ.features.PowerLawFeature;
 import de.biomedical_imaging.traJ.features.ShortTimeLongTimeDiffusioncoefficentRatio;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
+import de.biomedical_imaging.traj.math.ActiveTransportMSDLineFit;
 import ij.IJ;
 import ij.Prefs;
 import ij.WindowManager;
@@ -157,7 +163,7 @@ public class TraJClassifier_ implements PlugIn {
 		
 			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
 			System.out.println("window: " + windowSizeClassification);
-			gd.addSlider("Windowsize", 1, 200, windowSizeClassification);
+			gd.addSlider("Windowsize", 1, 1000, windowSizeClassification);
 			gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", minDiffusionCoefficient, 0);
 			gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
 			gd.addNumericField("Framerate", 1/timelag, 0);
@@ -368,17 +374,25 @@ public class TraJClassifier_ implements PlugIn {
 
 				AbstractTrajectoryFeature dcEstim=null;
 				double dc =0;
+				DecimalFormatSymbols otherSymbols = new DecimalFormatSymbols(Locale.ENGLISH);
+				NumberFormat formatter = new DecimalFormat("0.#####E0",otherSymbols);
+				double[] res;
 				switch (t.getType()) {
 				case "DIRECTED/ACTIVE":
+					
+					ActiveTransportParametersFeature apf = new ActiveTransportParametersFeature(t, timelag);
+					
 					dcEstim = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,t.size()-1);
 					dc = dcEstim.evaluate()[0];
-					rt.addValue("D", String.format("%6.3e",dc));
+					res = apf.evaluate();
+					rt.addValue("D", formatter.format(res[0]));
+					rt.addValue("Velocity_FIT", res[1]);
 					
 					break;
 				case "NORM. DIFFUSION":
 					dcEstim = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
 					dc = dcEstim.evaluate()[0];
-					rt.addValue("D", String.format("%6.3e",dc));
+					rt.addValue("D", formatter.format(dc));
 					break;
 				case "CONFINED":
 					AbstractDiffusionCoefficientEstimator dcEst = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,3);
@@ -388,13 +402,14 @@ public class TraJClassifier_ implements PlugIn {
 					rt.addValue("CONF. SIZE", p[0]);
 					rt.addValue("A (CONF SHAPE)", p[2]);
 					rt.addValue("B (CONF SHAPE)", p[3]);
-					rt.addValue("D", String.format("%6.3e",p[1]));
+					rt.addValue("D", formatter.format(p[1]));
 					break;
 				case "SUBDIFFUSION":
 					PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
-					double res[] = pwf.evaluate();
+					res = pwf.evaluate();
 					dc = res[1];
-					rt.addValue("D", String.format("%6.3e",dc));
+					
+					rt.addValue("D", formatter.format(dc));
 					break;
 				case "NONE":
 					break;
@@ -438,7 +453,7 @@ public class TraJClassifier_ implements PlugIn {
 					rt.addValue("KURTOSIS", v);
 					
 					AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
-					double[] res = pwf.evaluate();
+					res = pwf.evaluate();
 					v = res[0];
 					rt.addValue("ALPHA", v);
 					
