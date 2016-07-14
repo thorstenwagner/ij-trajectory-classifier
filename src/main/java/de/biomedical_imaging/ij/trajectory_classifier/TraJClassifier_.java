@@ -256,9 +256,9 @@ public class TraJClassifier_ implements PlugIn {
 			}else{
 				mTrack = track;
 			}
-			IJ.log("Class " + j);
+		
 			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification);
-			IJ.log("Class finished" + j);
+		
 			if(resampleRate>1){
 				String[] newclasses = new String[track.size()];
 				for(int i = 0; i < newclasses.length; i=i+resampleRate){

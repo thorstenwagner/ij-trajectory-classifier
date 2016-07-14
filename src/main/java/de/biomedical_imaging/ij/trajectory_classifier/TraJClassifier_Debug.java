@@ -51,8 +51,6 @@ import org.knowm.xchart.Series;
 import org.knowm.xchart.SeriesMarker;
 import org.knowm.xchart.SwingWrapper;
 
-import com.sun.tools.javac.util.GraphUtils.TarjanNode;
-
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.VisualizationUtils;
@@ -61,8 +59,6 @@ import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
 import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
 import de.biomedical_imaging.traJ.features.AsymmetryFeature;
-import de.biomedical_imaging.traJ.features.BoundednessFeature;
-import de.biomedical_imaging.traJ.features.ConfinedDiffusionParametersFeature;
 import de.biomedical_imaging.traJ.features.EfficiencyFeature;
 import de.biomedical_imaging.traJ.features.ElongationFeature;
 import de.biomedical_imaging.traJ.features.FractalDimensionFeature;
@@ -91,7 +87,7 @@ public class TraJClassifier_Debug {
 	public static void main(String[] args) {
 		
 		TraJClassifier_Debug db = new TraJClassifier_Debug();
-		showTestScene();
+		importTracksAndShow();
 		//testSubsampling();
 		
 	
@@ -153,6 +149,22 @@ public class TraJClassifier_Debug {
 		Mean m = new Mean();
 		
 		return m.evaluate(v);
+	}
+	
+	public static void importTracksAndShow(){
+		new ImageJ();
+		IJ.getInstance().show(true);
+		ImageStack is = new ImageStack(1000, 1000);
+		for(int i = 0; i < 1005; i++){
+			is.addSlice(new ByteProcessor(1000, 1000));
+		}
+		
+		ImagePlus img = new ImagePlus("", is);
+		img.show();
+		
+		
+		TraJClassifier_ tclass = new TraJClassifier_();
+		tclass.run("");
 	}
 	
 	public static void showTestScene(){

@@ -124,8 +124,10 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		double[] pwrDCs = new double[N];
 		Arrays.fill(power, -1);
 		int numberOfPointsForShortTimeLongTimeRatio = 2;
+		double start= System.currentTimeMillis();
 		int cores = Runtime.getRuntime().availableProcessors();
 		ExecutorService pool = Executors.newFixedThreadPool(cores);
+		
 		
 		for(int i = 0; i < tracks.size(); i++){
 			Trajectory t = tracks.get(i);
@@ -140,12 +142,12 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			if(i-1>0 && power[i-1]>0 && pwrDCs[i-1]>0){
 				initDC = pwrDCs[i-1];
 				initAlpha = power[i-1];
+	
 			}else{
 				RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1.0/timelag, 1, 3);
 				initDC= regest.evaluate()[0];
 				initAlpha = 0.5;
 			}
-			
 			
 			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3,initAlpha,initDC);
 			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
@@ -153,7 +155,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			
 			Asymmetry3Feature asymf3 = new Asymmetry3Feature(t);
 			pool.submit(new FeatureWorker(asym3, i,asymf3, EVALTYPE.FIRST));
-			
+		
 			EfficiencyFeature eff = new EfficiencyFeature(t);
 			pool.submit(new FeatureWorker(efficiency, i,eff, EVALTYPE.FIRST));
 			
@@ -177,8 +179,8 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 
 			GaussianityFeauture gaussf = new GaussianityFeauture(t, 1);
 			pool.submit(new FeatureWorker(gaussianity, i,gaussf, EVALTYPE.FIRST));
+	
 		}
-		
 		pool.shutdown();
 	
 		try {
@@ -187,7 +189,6 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			  e.printStackTrace();
 			}
 
-		
 		try {
 			
 			engine.put("fd",fd);
@@ -222,12 +223,10 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			}
 			engine.eval("mynames <- colnames(fprob)");
 			engine.eval("maxclass <- mynames[indexmax]");
-			
 			StringVector res = (StringVector)engine.eval("maxclass");
 			result = res.toArray();
 			DoubleVector confi = (DoubleVector)engine.eval("probs");
 			confindence = confi.toDoubleArray();
-			
 		}
 		catch (ParseException e) {
 		    System.out.println("R script parse error: " + e.getMessage());
