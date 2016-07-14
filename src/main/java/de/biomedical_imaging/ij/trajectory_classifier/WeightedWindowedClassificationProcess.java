@@ -49,14 +49,11 @@ public class WeightedWindowedClassificationProcess {
 			tracks.add(sub);
 		}
 		
-	
+		
 		String[] res = c.classify(tracks);
+
 		double[] confidence = c.getConfindence();
-		
-		
-		
-		
-		
+
 		String[] types = applyWeightening(res, confidence, n, t.size());
 		return types;
 	}
@@ -68,7 +65,7 @@ public class WeightedWindowedClassificationProcess {
 			types[i] = "NONE";
 		}
 		
-		double start= System.currentTimeMillis();
+		
 		//Build mapping
 				ArrayList<String> restypes = new ArrayList<String>();
 				for(int i =0; i < res.length; i++){
@@ -108,15 +105,7 @@ public class WeightedWindowedClassificationProcess {
 
 				for(int i = 0; i < types.length; i++){
 					if(weightes.get(i).length>0){
-					//	int[] help = arrListToArrayInt(weightes.get(i));
-					//	Arrays.sort(help);
-						//int[] modes = getMode(help,0,help.length);
-				
-				
 						int mode1 = getHighest(weightes.get(i));
-						//if(v!=(int)modes[0]){
-						//	System.out.println("!!! v: " + v + " modes" + modes[0]);
-						//}
 						String mode = mapIntToType.get(mode1);
 						types[i] = mode;
 				
