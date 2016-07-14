@@ -392,8 +392,6 @@ public class TraJClassifier_ implements PlugIn {
 		rtables.put("STALLED", new TraJResultsTable());
 		rtables.put("NONE", new TraJResultsTable());
 
-	
-		IJ.log("Fill results table");
 		for (int i = 0; i < classifiedTrajectories.size(); i++) {
 				IJ.showProgress(i, classifiedTrajectories.size());
 				Subtrajectory t = classifiedTrajectories.get(i);
@@ -410,7 +408,7 @@ public class TraJClassifier_ implements PlugIn {
 				AbstractTrajectoryFeature dcEstim=null;
 				double dc =0;
 				DecimalFormatSymbols otherSymbols = new DecimalFormatSymbols(Locale.ENGLISH);
-				NumberFormat formatter = new DecimalFormat("0.#####E0",otherSymbols);
+				NumberFormat formatter = new DecimalFormat("0.###E0",otherSymbols);
 				double[] res;
 				switch (t.getType()) {
 				case "DIRECTED/ACTIVE":
@@ -521,29 +519,33 @@ public class TraJClassifier_ implements PlugIn {
 		}
 		
 		/*
-		 * HIER MUSS EIN FILTER FÜR STALLED HIN
-		 * ER DURCHLÄUFT JEDE RESULTS TABLE UND PRÜFT
-		 * OB ALPHA ODER DC DEN STALLED BEDINGUNGEN GENÜGEN
-		 * 
-		 * FALLS JA,KOPIERE DIE ZEILE IN DIE STALLED TABLE
-		 * 
+		 * Detects stalled diffusion by thresholding alpha or diffusion coefficient
 		 */
 		Iterator<String> rtIt = rtables.keySet().iterator();
 		ResultsTable stalledRt = rtables.get("STALLED");
 		while(rtIt.hasNext()){
 			String rt = rtIt.next();
 			ResultsTable rt2 =  rtables.get(rt);
+			if(rt!="STALLED"){
 			for(int i = 0; i < rt2.getCounter(); i++){
 				double alpha = rt2.getValue("ALPHA", i);
-				double dc = rt2.getValue("D", i);
+				double dc = Double.parseDouble(rt2.getStringValue("D", i));
+		
 				if(isStalled(dc, alpha)){
 					String headings[] = rt2.getHeadings();
+		
+					stalledRt.incrementCounter();
 					for (String h : headings) {
-						stalledRt.addValue(h, rt2.getValue(h, i));
+						if(h.equals("CLASS") || h.equals("D")){
+							stalledRt.addValue(h, rt2.getStringValue(h, i));
+						}else{
+							stalledRt.addValue(h, rt2.getValue(h, i));
+						}
 					}
 					rt2.deleteRow(i);
 					i--;
 				}
+			}
 			}
 		}
 		
