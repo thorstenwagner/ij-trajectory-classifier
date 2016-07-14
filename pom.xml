@@ -22,7 +22,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<repositories>
 		<repository>
 			<id>ossrh</id>
-			<url>https://oss.sonatype.org/content/repositories/snapshots</url>
+			<url>https://oss.sonatype.org/content/repositories/staging/</url>
 		</repository>
 		 <repository>
 		    <id>bedatadriven</id>
@@ -40,7 +40,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 		<dependency>
 		  <groupId>de.biomedical-imaging.TraJ</groupId>
 		  <artifactId>traj</artifactId>
-		  <version>0.5.2</version>
+		  <version>0.5.5</version>
 		</dependency>
 		<dependency>
     			<groupId>javax.vecmath</groupId>
@@ -70,7 +70,7 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 		<dependency>
 	    	<groupId>org.renjin</groupId>
 	    	<artifactId>renjin-script-engine</artifactId>
-	    	<version>0.8.2136</version>
+	    	<version>0.8.2141</version>
 	 	</dependency>
 		<dependency>
 		    <groupId>org.renjin.cran</groupId>
@@ -125,8 +125,8 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	        <plugin>
 	            <artifactId>maven-compiler-plugin</artifactId>
 	            <configuration>
-	                <source>1.7</source>
-	                <target>1.7</target>
+	                <source>1.8</source>
+	                <target>1.8</target>
 	            </configuration>
 	        </plugin>
 	        

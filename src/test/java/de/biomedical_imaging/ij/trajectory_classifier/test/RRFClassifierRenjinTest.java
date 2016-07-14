@@ -21,6 +21,7 @@ import de.biomedical_imaging.traJ.simulation.FreeDiffusionSimulator;
 
 public class RRFClassifierRenjinTest {
 	static RRFClassifierRenjin c;
+	private static double timelag= 1.0/30;
 	
 	@BeforeClass
 	public static void setup(){
@@ -33,7 +34,7 @@ public class RRFClassifierRenjinTest {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		c = new RRFClassifierRenjin(modelpath);
+		c = new RRFClassifierRenjin(modelpath, timelag);
 		c.start();
 	
 	}
@@ -47,7 +48,6 @@ public class RRFClassifierRenjinTest {
 	public void Classify_FreeDiffusionSingleTrack_Test() {
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
-		double timelag = 1.0/30;
 		int simtracklength = 200;
 
 		AbstractSimulator sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
@@ -60,9 +60,8 @@ public class RRFClassifierRenjinTest {
 	@Test
 	public void Classify_FreeDiffusionMultipleTracks_Test() {
 
-		CentralRandomNumberGenerator.getInstance().setSeed(8);
+		CentralRandomNumberGenerator.getInstance().setSeed(9);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
-		double timelag = 1.0/30;
 		int simtracklength = 200;
 
 		AbstractSimulator sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
@@ -82,7 +81,6 @@ public class RRFClassifierRenjinTest {
 		
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
-		double timelag = 1.0/30;
 		int simtracklength = 200;
 
 		AbstractSimulator sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, simtracklength, 0.5);
@@ -98,7 +96,6 @@ public class RRFClassifierRenjinTest {
 		
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
-		double timelag = 1.0/30;
 		int simtracklength = 200;
 		double radius_confined = Math.sqrt(-1*Math.log(0.9)*(4*diffusioncoefficient*simtracklength*timelag));
 		AbstractSimulator sim = new ConfinedDiffusionSimulator(diffusioncoefficient, timelag, radius_confined, 2, simtracklength);
@@ -113,7 +110,6 @@ public class RRFClassifierRenjinTest {
 		
 		
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
-		double timelag = 1.0/30;
 		int simtracklength = 200;
 		double velocity = 1.5; // µm/s
 		AbstractSimulator sim = new ActiveTransportSimulator(velocity, Math.PI/4.0, timelag, 2, simtracklength);
@@ -129,7 +125,6 @@ public class RRFClassifierRenjinTest {
 		
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
-		double timelag = 1.0/30;
 		int simtracklength = 200;
 		double velocity = 1.5; // µm/s
 		AbstractSimulator sim = new ActiveTransportSimulator(velocity, Math.PI/4.0, timelag, 2, simtracklength);

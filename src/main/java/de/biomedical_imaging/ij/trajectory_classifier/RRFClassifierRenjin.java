@@ -25,6 +25,7 @@ SOFTWARE.
 package de.biomedical_imaging.ij.trajectory_classifier;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -57,13 +58,18 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 	private ScriptEngine engine = null;
 	private String pathToModel;
 	private double[] confindence;
-	
-	public RRFClassifierRenjin(String pathToModel) {
+	private double timelag;
+	public RRFClassifierRenjin(String pathToModel,double timelag) {
 		this.pathToModel = pathToModel;
+		this.timelag = timelag;
+	}
+	
+	public void setTimelag(double timelag){
+		this.timelag = timelag;
 	}
 	
 	@Override
-	public String classify(Trajectory t) {
+	public String classify(Trajectory t)  {
 		ArrayList<Trajectory> tracks = new ArrayList<Trajectory>();
 		tracks.add(t);
 		
@@ -98,14 +104,15 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 	}
 
 	@Override
-	public String[] classify(ArrayList<Trajectory> tracks) {
+	public String[] classify(ArrayList<Trajectory> tracks)  {
 		
 		int N = tracks.size();
 		String[] result = new String[N];
 		double[] fd = new double[N];
 		int[] lengths = new int[N];
 		double[] power = new double[N];
-		double[] ltStRatio = new double[N]; 
+		Arrays.fill(power, -1);
+		//double[] ltStRatio = new double[N]; 
 		double[] asym3 = new double[N];
 		double[] efficiency = new double[N];
 		double[] kurtosis = new double[N];
@@ -114,7 +121,8 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		double[] straightness = new double[N];
 		double[] trappedness = new double[N];
 		double[] gaussianity = new double[N];
-		
+		double[] pwrDCs = new double[N];
+		Arrays.fill(power, -1);
 		int numberOfPointsForShortTimeLongTimeRatio = 2;
 		int cores = Runtime.getRuntime().availableProcessors();
 		ExecutorService pool = Executors.newFixedThreadPool(cores);
@@ -127,19 +135,30 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			
 			FractalDimensionFeature fdF = new FractalDimensionFeature(t);
 			pool.submit(new FeatureWorker(fd, i,fdF, EVALTYPE.FIRST));
+			double initDC=0;
+			double initAlpha =0;
+			if(i-1>0 && power[i-1]>0 && pwrDCs[i-1]>0){
+				initDC = pwrDCs[i-1];
+				initAlpha = power[i-1];
+			}else{
+				RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1.0/timelag, 1, 3);
+				initDC= regest.evaluate()[0];
+				initAlpha = 0.5;
+			}
 			
-			RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1.0/TraJClassifier_.getInstance().getTimelag(), 1, 3);
-			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3,0.5,regest.evaluate()[0]);
+			
+			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3,initAlpha,initDC);
 			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
-
+			pool.submit(new FeatureWorker(pwrDCs, i,pwf, EVALTYPE.SECOND));
+			
 			Asymmetry3Feature asymf3 = new Asymmetry3Feature(t);
 			pool.submit(new FeatureWorker(asym3, i,asymf3, EVALTYPE.FIRST));
 			
 			EfficiencyFeature eff = new EfficiencyFeature(t);
 			pool.submit(new FeatureWorker(efficiency, i,eff, EVALTYPE.FIRST));
 			
-			ShortTimeLongTimeDiffusioncoefficentRatio stltdf = new ShortTimeLongTimeDiffusioncoefficentRatio(t, numberOfPointsForShortTimeLongTimeRatio);
-			pool.submit(new FeatureWorker(ltStRatio, i,stltdf, EVALTYPE.FIRST));
+		//	ShortTimeLongTimeDiffusioncoefficentRatio stltdf = new ShortTimeLongTimeDiffusioncoefficentRatio(t, numberOfPointsForShortTimeLongTimeRatio);
+		//	pool.submit(new FeatureWorker(ltStRatio, i,stltdf, EVALTYPE.FIRST));
 			
 			KurtosisFeature kurtf = new KurtosisFeature(t);
 			pool.submit(new FeatureWorker(kurtosis, i,kurtf, EVALTYPE.FIRST));
@@ -161,18 +180,20 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		}
 		
 		pool.shutdown();
+	
 		try {
 			pool.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
 			} catch (InterruptedException e) {
 			  e.printStackTrace();
 			}
+
 		
 		try {
 			
 			engine.put("fd",fd);
 			engine.put("lengths",lengths);
 			engine.put("power", power);
-			engine.put("LtStRatio", ltStRatio);
+		//	engine.put("LtStRatio", ltStRatio);
 			engine.put("asymmetry3", asym3);
 			engine.put("efficiency", efficiency);
 			engine.put("kurtosis",kurtosis);
@@ -183,13 +204,14 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			engine.put("gaussianity", gaussianity);
 			
 			engine.eval("data<-data.frame(LENGTHS=lengths,FD=fd,"
-					+ "POWER=power,LTST.RATIO=LtStRatio,"
+					+ "POWER=power,"
 					+ "MSD.R=msdratio,ASYM3=asymmetry3,EFFICENCY=efficiency, KURT=kurtosis,"
 					+ "SKEW=skewness,STRAIGHTNESS=straightness, "
 					+ "TRAPPED=trappedness,GAUSS=gaussianity)");
+
 			engine.eval("features.predict <- predict(model,data,type=\"prob\")");
 			engine.eval("fprob<-features.predict");
-			
+		
 			if(tracks.size()>1){
 				engine.eval("probs <- as.vector(apply(fprob[1:nrow(fprob),],1,max))");
 				engine.eval("indexmax <- as.vector(apply(fprob[1:nrow(fprob),],1,which.max))");
@@ -200,10 +222,12 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			}
 			engine.eval("mynames <- colnames(fprob)");
 			engine.eval("maxclass <- mynames[indexmax]");
+			
 			StringVector res = (StringVector)engine.eval("maxclass");
 			result = res.toArray();
 			DoubleVector confi = (DoubleVector)engine.eval("probs");
 			confindence = confi.toDoubleArray();
+			
 		}
 		catch (ParseException e) {
 		    System.out.println("R script parse error: " + e.getMessage());

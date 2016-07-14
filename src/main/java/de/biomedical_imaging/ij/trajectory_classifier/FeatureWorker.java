@@ -28,7 +28,7 @@ import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
 
 public class FeatureWorker extends Thread {
 	enum EVALTYPE{
-		FIRST,RATIO_01,RATIO_10,RATIO_12;
+		FIRST,SECOND,RATIO_01,RATIO_10,RATIO_12;
 	}
 	double[] result;
 	AbstractTrajectoryFeature c;
@@ -47,18 +47,23 @@ public class FeatureWorker extends Thread {
 		double[] res ;
 			switch (ev) {
 			case FIRST:
-				result[resIndex] = c.evaluate()[0];
+				res = c.getValue();
+				result[resIndex] = res[0] ;
+				break;
+			case SECOND:
+				res = c.getValue();
+				result[resIndex] = res[1] ;
 				break;
 			case RATIO_01:
-				res = c.evaluate();
+				res = c.getValue();
 				result[resIndex] = res[0]/res[1];
 				break;
 			case RATIO_10:
-				res = c.evaluate();
+				res = c.getValue();
 				result[resIndex] = res[1]/res[0];
 				break;
 			case RATIO_12:
-				res = c.evaluate();
+				res = c.getValue();
 				result[resIndex] = res[1]/res[2];
 				break;
 

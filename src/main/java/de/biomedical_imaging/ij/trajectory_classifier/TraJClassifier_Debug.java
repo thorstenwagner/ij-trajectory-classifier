@@ -32,32 +32,37 @@ import ij.ImageStack;
 import ij.measure.CurveFitter;
 import ij.process.ByteProcessor;
 
-
 import java.awt.Color;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
 
-
 import org.apache.commons.lang3.ArrayUtils;
-
 import org.apache.commons.math3.stat.StatUtils;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
 import org.knowm.xchart.Chart;
 import org.knowm.xchart.Series;
 import org.knowm.xchart.SeriesMarker;
 import org.knowm.xchart.SwingWrapper;
 
+import com.sun.tools.javac.util.GraphUtils.TarjanNode;
+
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.VisualizationUtils;
-
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
 import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
 import de.biomedical_imaging.traJ.features.AsymmetryFeature;
+import de.biomedical_imaging.traJ.features.BoundednessFeature;
+import de.biomedical_imaging.traJ.features.ConfinedDiffusionParametersFeature;
 import de.biomedical_imaging.traJ.features.EfficiencyFeature;
 import de.biomedical_imaging.traJ.features.ElongationFeature;
 import de.biomedical_imaging.traJ.features.FractalDimensionFeature;
@@ -74,6 +79,7 @@ import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 import de.biomedical_imaging.traJ.simulation.AbstractSimulator;
+import de.biomedical_imaging.traJ.simulation.ActiveTransportSimulator;
 import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionWMSimulation;
 import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
 import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
@@ -83,15 +89,89 @@ import de.biomedical_imaging.traJ.simulation.SimulationUtil;
 public class TraJClassifier_Debug {
 
 	public static void main(String[] args) {
-		CentralRandomNumberGenerator.getInstance().setSeed(8);
+		
+		TraJClassifier_Debug db = new TraJClassifier_Debug();
+		showTestScene();
+		//testSubsampling();
+		
+	
+	}
+	
+	public void testSubsampling(){
+		CentralRandomNumberGenerator.getInstance().setSeed(10);
+		String modelpath="";
+		try {
+			modelpath= ExportResource("/randomForestModel.RData");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		double diffusioncoefficient = 50;
+		double SNR = 5;
+		int n = 1;
+		double sigma = Math.sqrt(diffusioncoefficient*1.0/30)/SNR; 
+		FreeDiffusionSimulator freesim = new FreeDiffusionSimulator(diffusioncoefficient, 1.0/30, 2, 250);
+		int N = 2000;
+		RRFClassifierRenjin cl = new RRFClassifierRenjin(modelpath, 1.0/30);
+		
+		cl.start();
+		ArrayList<Trajectory> tracks = new ArrayList<Trajectory>();
+		for(int i = 0; i < N; i++){
+			Trajectory t = freesim.generateTrajectory();
+			t = SimulationUtil.addPositionNoise(t, sigma);
+			t = TrajectoryUtil.resample(t, n);
+			//System.out.println("S: "+ t.size());
+			tracks.add(t);
+		}
+		cl.setTimelag(n*1.0/30);
+		String[] res = cl.classify(tracks);
+		
+		int scounter = 0;
+		int ncounter = 0;
+		for (String s : res) {
+			if(s.equals("SUBDIFFUSION")){
+				scounter++;
+			}
+			if(s.equals("NORM. DIFFUSION")){
+				ncounter++;
+			}
+		}
+		System.out.println("SC: " + (1.0*scounter)/res.length);
+		System.out.println("SN: " + (1.0*ncounter)/res.length);
+	}
+	
+	
+	
+	public static double meanAbsoluteSteplength(Trajectory t){
+		double[] v = new double[t.size()-1];
+		
+		for(int i = 1; i < t.size(); i++){
+			v[i-1] = Math.abs(t.get(i).distance(t.get(i-1)));
+		}
+		
+		Mean m = new Mean();
+		
+		return m.evaluate(v);
+	}
+	
+	public static void showTestScene(){
+		CentralRandomNumberGenerator.getInstance().setSeed(9);
 		double diffusioncoefficient = 50;//9.02*Math.pow(10,-2); //[µm^2/s];
 		double timelag = 1.0/30;
 		double[] driftspeed = {0, 0.27,1,2.4}; // µm/s
 		double angleVelocity = Math.PI/4; //rad/s
 		int simtracklength = 500;
-		int diffusionToNoiseRatio = 2;
+		int diffusionToNoiseRatio = 1;
 		double sigmaPosNoise = Math.sqrt(2*diffusioncoefficient*timelag)/diffusionToNoiseRatio; 
 		
+		double SNR = 5;
+		double r = 13;
+		double boundness = 1.5;
+		double Dc = diffusioncoefficient;
+		double rsig = Math.sqrt(Dc*timelag)/SNR;
+		System.out.println("RSIG: " + rsig);
+		int w = 60;
 		
 		AbstractSimulator sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
 		ArrayList<Trajectory> t = new ArrayList<Trajectory>();
@@ -102,19 +182,53 @@ public class TraJClassifier_Debug {
 		ArrayList<Chart> lc = new ArrayList<Chart>();
 		Chart c = VisualizationUtils.getTrajectoryChart(tr);
 		lc.add(c);
-		t.add(tr);
+		//t.add(tr);
 		
 		
 		sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, 2000, 0.5);
 		Trajectory tr2 = sim.generateTrajectory();
-		tr2 = tr2.subList(0, 500+1);
-		t.add(TrajectoryUtil.concactTrajectorie(tr, tr2));
+		tr2 = tr2.subList(0, simtracklength+1);
+		tr =TrajectoryUtil.concactTrajectorie(tr, tr2);
+		tr = SimulationUtil.addPositionNoise(tr, rsig);
+		t.add(tr);
 		
-		double radius_confined = Math.sqrt(-1*Math.log(0.9)*(4*diffusioncoefficient*60*timelag));
+		
+
+		double radius_confined = Math.sqrt(((-79.751+4.051*w)*Dc*timelag)/(4*boundness));
+		System.out.println("Radius: " + radius_confined);
+
 		sim = new ConfinedDiffusionSimulator(diffusioncoefficient,timelag,radius_confined,2,500);
 		tr = sim.generateTrajectory();
+		tr = SimulationUtil.addPositionNoise(tr, rsig);
 		tr.offset(250, 250, 0);
 		t.add(tr);
+		
+	
+		
+		
+		System.out.println("pos_sigma: " + rsig);
+		
+		double tC = w*timelag;
+		double v = Math.sqrt(r*4*Dc/tC);
+		rsig = Math.sqrt(Dc*timelag + v*v*timelag*timelag)/SNR;
+		System.out.println("Velocity: " + v);
+		System.out.println("SNR Active: " + Math.sqrt(Dc*timelag+v*v*timelag*timelag)/rsig);
+		sim = new ActiveTransportSimulator(v, Math.PI/4, timelag, 2, simtracklength);
+		tr = sim.generateTrajectory();
+		tr = SimulationUtil.addPositionNoise(tr, rsig);
+		tr.offset(250, 750, 0);
+		t.add(tr);
+		
+		tr = sim.generateTrajectory();
+		sim = new FreeDiffusionSimulator(Dc, timelag, 2, simtracklength);
+		tr2 = sim.generateTrajectory();
+		
+		tr = TrajectoryUtil.combineTrajectory(tr, tr2);
+		System.out.println("rsig" + rsig);
+		tr = SimulationUtil.addPositionNoise(tr, rsig);
+		tr.offset(500,250, 0);
+		t.add(tr);
+		
 		new ImageJ();
 		IJ.getInstance().show(true);
 		ImageStack is = new ImageStack(1000, 1000);
@@ -123,7 +237,7 @@ public class TraJClassifier_Debug {
 		}
 		
 		ImagePlus img = new ImagePlus("", is);
-		//img.show();
+		img.show();
 		
 		TraJClassifier_ tclass = new TraJClassifier_();
 		tclass.setTracksToClassify(t);
@@ -132,8 +246,6 @@ public class TraJClassifier_Debug {
 		tclass.run("DEBUG");
 		final long timeEnd = System.currentTimeMillis(); 
 	    System.out.println("Laufzeit: " + (timeEnd - timeStart) + " Millisek."); 
-		
-	
 	}
 	
 	
@@ -396,6 +508,48 @@ public class TraJClassifier_Debug {
 		}
 		return medTypes;	
 	}
+	
+	/**
+     * Export a resource embedded into a Jar file to the local file path.
+     *
+     * @param resourceName ie.: "/SmartLibrary.dll"
+     * @return The path to the exported resource
+     * @throws Exception
+     */
+    public String ExportResource(String resourceName) throws Exception {
+        InputStream stream = null;
+        OutputStream resStreamOut = null;
+        String tmpFolder;
+        try {
+            stream = this.getClass().getResourceAsStream(resourceName);//note that each / is a directory down in the "jar tree" been the jar the root of the tree
+            if(stream == null) {
+            	IJ.error("Cannot get resource \"" + resourceName + "\" from Jar file.");
+                throw new Exception("Cannot get resource \"" + resourceName + "\" from Jar file.");
+            }
+
+            int readBytes;
+            byte[] buffer = new byte[4096];
+            File folderDir = new File(IJ.getDirectory("temp")+"/.trajclassifier");
+
+            // if the directory does not exist, create it
+            if (!folderDir.exists()) {
+            	folderDir.mkdir();
+            }
+            tmpFolder = folderDir.getPath().replace('\\', '/');
+            resStreamOut = new FileOutputStream(tmpFolder + resourceName);
+            while ((readBytes = stream.read(buffer)) > 0) {
+                resStreamOut.write(buffer, 0, readBytes);
+            }
+        } catch (Exception ex) {
+        	IJ.error(ex.getMessage());
+            throw ex;
+        } finally {
+            stream.close();
+            resStreamOut.close();
+        }
+
+        return tmpFolder + resourceName;
+    }
 	
 	
 

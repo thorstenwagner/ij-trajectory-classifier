@@ -41,8 +41,10 @@ import java.util.Locale;
 import java.util.Set;
 
 import org.apache.commons.math3.stat.StatUtils;
+import org.junit.experimental.ParallelComputer;
 
 import de.biomedical_imaging.traJ.Trajectory;
+import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.AbstractDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.CovarianceDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
@@ -79,7 +81,9 @@ public class TraJClassifier_ implements PlugIn {
 	private double minTrackLength;
 	private int windowSizeClassification;
 	private double minDiffusionCoefficient;
+	private double minAlpha;
 	private double pixelsize;
+	private int resampleRate;
 	private boolean showID;
 	private boolean showOverviewClasses;
 	private ArrayList<Subtrajectory> classifiedTrajectories;
@@ -94,6 +98,7 @@ public class TraJClassifier_ implements PlugIn {
 		minDiffusionCoefficient=0;
 		pixelsize=0.166;
 		timelag=1.0/30;
+		resampleRate=1;
 		showID = true;
 		instance = this;
 	}
@@ -165,6 +170,8 @@ public class TraJClassifier_ implements PlugIn {
 			System.out.println("window: " + windowSizeClassification);
 			gd.addSlider("Windowsize", 1, 1000, windowSizeClassification);
 			gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", minDiffusionCoefficient, 0);
+			gd.addNumericField("Min. alpha", 0.05, 3);
+			gd.addNumericField("Resample rate", 1, 0);
 			gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
 			gd.addNumericField("Framerate", 1/timelag, 0);
 			gd.addCheckbox("Show IDs", showID);
@@ -178,6 +185,8 @@ public class TraJClassifier_ implements PlugIn {
 			minTrackLength = gd.getNextNumber();
 			windowSizeClassification = (int) (gd.getNextNumber()/2);
 			minDiffusionCoefficient = gd.getNextNumber();
+			minAlpha = gd.getNextNumber();
+			resampleRate = (int)gd.getNextNumber();
 			pixelsize = gd.getNextNumber();
 			timelag = 1/gd.getNextNumber();
 			showID = gd.getNextBoolean();
@@ -206,7 +215,7 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Classification, Segmentation & Visualization
 		 */
-		AbstractClassifier rrf = new RRFClassifierRenjin(modelpath);
+		RRFClassifierRenjin rrf = new RRFClassifierRenjin(modelpath,timelag);
 		rrf.start();
 		WeightedWindowedClassificationProcess wcp = new WeightedWindowedClassificationProcess();
 		
@@ -239,8 +248,32 @@ public class TraJClassifier_ implements PlugIn {
 		for (Trajectory track : minLengthTracks) {
 			j++;
 			IJ.showProgress(j, minLengthTracks.size());
-
-			String[] classes = wcp.windowedClassification(track, rrf, windowSizeClassification);
+			Trajectory mTrack = null;
+			if(resampleRate>1){
+		
+				mTrack = TrajectoryUtil.resample(track, resampleRate);
+				rrf.setTimelag(resampleRate*timelag);
+			}else{
+				mTrack = track;
+			}
+			IJ.log("Class " + j);
+			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification);
+			IJ.log("Class finished" + j);
+			if(resampleRate>1){
+				String[] newclasses = new String[track.size()];
+				for(int i = 0; i < newclasses.length; i=i+resampleRate){
+					String clazz = classes[(int)i/resampleRate];
+					newclasses[i] = clazz;
+					for(int k = i+1; k < i+1+resampleRate; k++){
+						if(k<newclasses.length){
+							newclasses[k] = clazz;
+						}
+					}
+					
+					
+				}
+				classes = newclasses;
+			}
 			
 			Subtrajectory tr = new Subtrajectory(track,2);
 			tr.setID(subidcounter);
@@ -279,7 +312,8 @@ public class TraJClassifier_ implements PlugIn {
 		//Segments have to contain at least 30 steps
 		for(int i = 0; i < classifiedTrajectories.size(); i++){
 			if(classifiedTrajectories.get(i).size()<30){
-				
+				classifiedTrajectories.remove(i);
+				i--;
 			}
 		}
 	
@@ -358,6 +392,7 @@ public class TraJClassifier_ implements PlugIn {
 		rtables.put("STALLED", new TraJResultsTable());
 		rtables.put("NONE", new TraJResultsTable());
 
+	
 		IJ.log("Fill results table");
 		for (int i = 0; i < classifiedTrajectories.size(); i++) {
 				IJ.showProgress(i, classifiedTrajectories.size());
@@ -417,9 +452,11 @@ public class TraJClassifier_ implements PlugIn {
 					break;
 				}
 				
-				if(dc<minDiffusionCoefficient){
-					t.setType("STALLED");
-				}
+				AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
+				res = pwf.evaluate();
+				double alpha = res[0];
+				
+				
 				
 				AbstractTrajectoryFeature f = new CenterOfGravityFeature(t);
 				double cog_x = f.evaluate()[0];
@@ -452,10 +489,10 @@ public class TraJClassifier_ implements PlugIn {
 					v = kurt.evaluate()[0];
 					rt.addValue("KURTOSIS", v);
 					
-					AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
-					res = pwf.evaluate();
-					v = res[0];
-					rt.addValue("ALPHA", v);
+				//	AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
+				//	res = pwf.evaluate();
+				//	v = res[0];
+					rt.addValue("ALPHA", alpha);
 					
 					GaussianityFeauture gauss = new GaussianityFeauture(t, 1);
 					v = gauss.evaluate()[0];
@@ -469,13 +506,45 @@ public class TraJClassifier_ implements PlugIn {
 					v = msdratio.evaluate()[0];
 					rt.addValue("MSDRatio", v);
 					
+					CovarianceDiffusionCoefficientEstimator cest = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
+					res = cest.evaluate();
+					rt.addValue("Loc. noise_sigma", (res[1]+res[2])/2);
+					
+					/*
 					
 					ShortTimeLongTimeDiffusioncoefficentRatio ltstratio = new ShortTimeLongTimeDiffusioncoefficentRatio(t, 2);
 					v = ltstratio.evaluate()[0];
 					rt.addValue("LTSTRatio", v);
-
+					*/
 				}
 
+		}
+		
+		/*
+		 * HIER MUSS EIN FILTER FÜR STALLED HIN
+		 * ER DURCHLÄUFT JEDE RESULTS TABLE UND PRÜFT
+		 * OB ALPHA ODER DC DEN STALLED BEDINGUNGEN GENÜGEN
+		 * 
+		 * FALLS JA,KOPIERE DIE ZEILE IN DIE STALLED TABLE
+		 * 
+		 */
+		Iterator<String> rtIt = rtables.keySet().iterator();
+		ResultsTable stalledRt = rtables.get("STALLED");
+		while(rtIt.hasNext()){
+			String rt = rtIt.next();
+			ResultsTable rt2 =  rtables.get(rt);
+			for(int i = 0; i < rt2.getCounter(); i++){
+				double alpha = rt2.getValue("ALPHA", i);
+				double dc = rt2.getValue("D", i);
+				if(isStalled(dc, alpha)){
+					String headings[] = rt2.getHeadings();
+					for (String h : headings) {
+						stalledRt.addValue(h, rt2.getValue(h, i));
+					}
+					rt2.deleteRow(i);
+					i--;
+				}
+			}
 		}
 		
 		ResultsTable parents = new ResultsTable();
@@ -528,13 +597,20 @@ public class TraJClassifier_ implements PlugIn {
 		
 		// show tables
 		parents.show("Parents");
-		Iterator<String> rtIt = rtables.keySet().iterator();
+		rtIt = rtables.keySet().iterator();
 		while(rtIt.hasNext()){
 			String rt = rtIt.next();
 			rtables.get(rt).show(rt + " trajectories");
 		}
 		
 		IJ.log("Done");
+	}
+	
+	public boolean isStalled(double dc,double alpha){
+		if(dc<minDiffusionCoefficient || alpha < minAlpha){
+			return true;
+		}
+		return false;
 	}
 	
 	
