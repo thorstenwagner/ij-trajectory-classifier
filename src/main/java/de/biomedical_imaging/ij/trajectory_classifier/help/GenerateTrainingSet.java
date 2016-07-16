@@ -1,4 +1,4 @@
-package de.biomedical_imaging.ij.trajectory_classifier;
+package de.biomedical_imaging.ij.trajectory_classifier.help;
 
 import java.util.ArrayList;
 
@@ -97,6 +97,7 @@ public class GenerateTrainingSet {
 		default:
 			break;
 		}
+		String path = "/home/thorsten/tracks_"+prefix+".RData";
 		r  = CentralRandomNumberGenerator.getInstance();
 		r.setSeed(seed); 
 
@@ -174,7 +175,7 @@ public class GenerateTrainingSet {
 
 	
 		System.out.println("Tracks generated");
-		ExportTools.exportTrajectoriesAsRData(trajectorys, "/home/thorsten/tracks_"+prefix+".RData", timelag);
+		ExportTools.exportTrajectoriesAsRData(trajectorys, path, timelag);
 		trajectorys=null;
 		System.out.println("Export done");
 		
