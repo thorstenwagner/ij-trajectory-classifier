@@ -526,26 +526,26 @@ public class TraJClassifier_ implements PlugIn {
 		while(rtIt.hasNext()){
 			String rt = rtIt.next();
 			ResultsTable rt2 =  rtables.get(rt);
-			if(rt!="STALLED"){
-			for(int i = 0; i < rt2.getCounter(); i++){
-				double alpha = rt2.getValue("ALPHA", i);
-				double dc = Double.parseDouble(rt2.getStringValue("D", i));
-		
-				if(isStalled(dc, alpha)){
-					String headings[] = rt2.getHeadings();
-		
-					stalledRt.incrementCounter();
-					for (String h : headings) {
-						if(h.equals("CLASS") || h.equals("D")){
-							stalledRt.addValue(h, rt2.getStringValue(h, i));
-						}else{
-							stalledRt.addValue(h, rt2.getValue(h, i));
+			if(!rt.equals("NONE") && !rt.equals("STALLED") && rt2.getCounter()>0){
+				for(int i = 0; i < rt2.getCounter(); i++){
+					double alpha = rt2.getValue("ALPHA", i);
+					double dc = Double.parseDouble(rt2.getStringValue("D", i));
+			
+					if(isStalled(dc, alpha)){
+						String headings[] = rt2.getHeadings();
+			
+						stalledRt.incrementCounter();
+						for (String h : headings) {
+							if(h.equals("CLASS") || h.equals("D")){
+								stalledRt.addValue(h, rt2.getStringValue(h, i));
+							}else{
+								stalledRt.addValue(h, rt2.getValue(h, i));
+							}
 						}
+						rt2.deleteRow(i);
+						i--;
 					}
-					rt2.deleteRow(i);
-					i--;
 				}
-			}
 			}
 		}
 		

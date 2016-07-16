@@ -24,6 +24,8 @@ SOFTWARE.
 
 package de.biomedical_imaging.ij.trajectory_classifier;
 
+import ij.IJ;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
@@ -112,7 +114,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		int[] lengths = new int[N];
 		double[] power = new double[N];
 		Arrays.fill(power, -1);
-		//double[] ltStRatio = new double[N]; 
+		double[] ltStRatio = new double[N]; 
 		double[] asym3 = new double[N];
 		double[] efficiency = new double[N];
 		double[] kurtosis = new double[N];
@@ -159,8 +161,8 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			EfficiencyFeature eff = new EfficiencyFeature(t);
 			pool.submit(new FeatureWorker(efficiency, i,eff, EVALTYPE.FIRST));
 			
-		//	ShortTimeLongTimeDiffusioncoefficentRatio stltdf = new ShortTimeLongTimeDiffusioncoefficentRatio(t, numberOfPointsForShortTimeLongTimeRatio);
-		//	pool.submit(new FeatureWorker(ltStRatio, i,stltdf, EVALTYPE.FIRST));
+			ShortTimeLongTimeDiffusioncoefficentRatio stltdf = new ShortTimeLongTimeDiffusioncoefficentRatio(t, numberOfPointsForShortTimeLongTimeRatio);
+			pool.submit(new FeatureWorker(ltStRatio, i,stltdf, EVALTYPE.FIRST));
 			
 			KurtosisFeature kurtf = new KurtosisFeature(t);
 			pool.submit(new FeatureWorker(kurtosis, i,kurtf, EVALTYPE.FIRST));
@@ -190,11 +192,11 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			}
 
 		try {
-			
+		
 			engine.put("fd",fd);
 			engine.put("lengths",lengths);
 			engine.put("power", power);
-		//	engine.put("LtStRatio", ltStRatio);
+			engine.put("LtStRatio", ltStRatio);
 			engine.put("asymmetry3", asym3);
 			engine.put("efficiency", efficiency);
 			engine.put("kurtosis",kurtosis);
@@ -208,7 +210,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 					+ "POWER=power,"
 					+ "MSD.R=msdratio,ASYM3=asymmetry3,EFFICENCY=efficiency, KURT=kurtosis,"
 					+ "SKEW=skewness,STRAIGHTNESS=straightness, "
-					+ "TRAPPED=trappedness,GAUSS=gaussianity)");
+					+ "TRAPPED=trappedness,GAUSS=gaussianity,LTST.RATIO=LtStRatio)");
 
 			engine.eval("features.predict <- predict(model,data,type=\"prob\")");
 			engine.eval("fprob<-features.predict");

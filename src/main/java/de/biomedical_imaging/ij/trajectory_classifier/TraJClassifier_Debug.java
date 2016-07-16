@@ -87,7 +87,7 @@ public class TraJClassifier_Debug {
 	public static void main(String[] args) {
 		
 		TraJClassifier_Debug db = new TraJClassifier_Debug();
-		showTestScene();
+		importTracksAndShow();
 		//testSubsampling();
 		
 	
