@@ -47,8 +47,8 @@ public class RRFClassifierRenjinTest {
 	@Test
 	public void Classify_FreeDiffusionSingleTrack_Test() {
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
-		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
-		int simtracklength = 200;
+		double diffusioncoefficient = 9.02; //[µm^2/s];
+		int simtracklength = 500;
 
 		AbstractSimulator sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
 		
@@ -61,8 +61,8 @@ public class RRFClassifierRenjinTest {
 	public void Classify_FreeDiffusionMultipleTracks_Test() {
 
 		CentralRandomNumberGenerator.getInstance().setSeed(9);
-		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
-		int simtracklength = 200;
+		double diffusioncoefficient = 9.02; //[µm^2/s];
+		int simtracklength = 500;
 
 		AbstractSimulator sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
 		
@@ -80,7 +80,7 @@ public class RRFClassifierRenjinTest {
 		
 		
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
-		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
+		double diffusioncoefficient = 9.02; //[µm^2/s];
 		int simtracklength = 200;
 
 		AbstractSimulator sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, simtracklength, 0.5);
@@ -95,7 +95,7 @@ public class RRFClassifierRenjinTest {
 		
 		
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
-		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
+		double diffusioncoefficient = 9.02; //[µm^2/s];
 		int simtracklength = 200;
 		double radius_confined = Math.sqrt(-1*Math.log(0.9)*(4*diffusioncoefficient*simtracklength*timelag));
 		AbstractSimulator sim = new ConfinedDiffusionSimulator(diffusioncoefficient, timelag, radius_confined, 2, simtracklength);
@@ -126,7 +126,9 @@ public class RRFClassifierRenjinTest {
 		CentralRandomNumberGenerator.getInstance().setSeed(8);
 		double diffusioncoefficient = 9.02*Math.pow(10,-2); //[µm^2/s];
 		int simtracklength = 200;
-		double velocity = 1.5; // µm/s
+		double aToDRatio = 10;
+		double tracklength = simtracklength*timelag;
+		double velocity = Math.sqrt(aToDRatio*4*diffusioncoefficient/tracklength);
 		AbstractSimulator sim = new ActiveTransportSimulator(velocity, Math.PI/4.0, timelag, 2, simtracklength);
 		Trajectory active = sim.generateTrajectory();
 		sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
