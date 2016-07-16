@@ -118,13 +118,13 @@ public class GenerateTrainingSet {
 					for(int i = 0 ; i < numberOfTracks; i++){
 							double tracklength = (1+r.nextDouble()*20);
 							int numberOfSteps = (int)(tracklength * 1/timelag);
-							double boundedness = 1 + r.nextDouble()*15;
+							double boundedness = 1 + r.nextDouble()*6;
 							double alpha = 0.1+r.nextDouble()*0.8; 
 							AbstractSimulator sim = null;
 							String typestring = "";
 							typestring += type.toString();
 							Trajectory t = null;
-							double diffusionToNoiseRatio = 1 + r.nextDouble()*20;
+							double diffusionToNoiseRatio = 1 + r.nextDouble()*8;
 							double sigmaPosNoise = 1;
 							switch (type) {
 							case FREE:
@@ -139,7 +139,7 @@ public class GenerateTrainingSet {
 								sigmaPosNoise = Math.sqrt(diffusioncoefficient*timelag)/diffusionToNoiseRatio; 
 								break;
 							case ACTIVE:
-								double aToDRatio = 0.5 + r.nextDouble()*30;
+								double aToDRatio = 1 + r.nextDouble()*17;
 								double drift = Math.sqrt(aToDRatio*4*diffusioncoefficient/tracklength);
 								AbstractSimulator sim1 = new ActiveTransportSimulator(drift, angleVelocity, timelag, dimension, numberOfSteps);
 								AbstractSimulator sim2 = new FreeDiffusionSimulator(diffusioncoefficient, timelag, dimension, numberOfSteps);
