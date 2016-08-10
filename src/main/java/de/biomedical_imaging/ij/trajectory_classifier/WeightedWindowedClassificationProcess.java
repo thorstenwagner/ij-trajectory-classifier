@@ -36,19 +36,30 @@ import org.apache.commons.math3.stat.Frequency;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
 
 import de.biomedical_imaging.traJ.Trajectory;
+import de.biomedical_imaging.traJ.TrajectoryUtil;
 
 public class WeightedWindowedClassificationProcess {
 	
-	public String[] windowedClassification(Trajectory t, AbstractClassifier c, int n){
+	/**
+	 * 
+	 * @param t Trajectory to be classified
+	 * @param c Classifier
+	 * @param n Determines the window size w = 2*n + 1
+	 * @param rate Resampling rate
+	 * @return
+	 */
+	public String[] windowedClassification(Trajectory t, AbstractClassifier c, int n, int rate){
 		int windowsize = 2*n+1;
 		
 		int increment = 1;
 		ArrayList<Trajectory> tracks = new ArrayList<Trajectory>();
 		for(int i = 0; i < (t.size()-windowsize+increment);i=i+increment){
 			Trajectory sub = t.subList(i, i+windowsize-1);
+			if(rate>1){
+				sub = TrajectoryUtil.resample(sub, rate);
+			}
 			tracks.add(sub);
 		}
-		
 		
 		String[] res = c.classify(tracks);
 
@@ -61,9 +72,9 @@ public class WeightedWindowedClassificationProcess {
 	protected String[] applyWeightening(String[] res, double[] confidence, int n, int tracklength){
 		
 		String[] types = new String[tracklength];
-		for(int i = 0; i < types.length; i++){
-			types[i] = "NONE";
-		}
+	//	for(int i = 0; i < types.length; i++){
+	//		types[i] = "NONE";
+	//	}
 		
 		
 		//Build mapping
@@ -71,7 +82,7 @@ public class WeightedWindowedClassificationProcess {
 				for(int i =0; i < res.length; i++){
 					restypes.add(res[i]);
 				}
-				restypes.add("NONE");
+			//	restypes.add("NONE");
 				HashSet<String> uniqueTypes = new HashSet<String>();
 				uniqueTypes.addAll(restypes);
 				HashMap<String, Integer> mapTypeToInt = new HashMap<String, Integer>();
@@ -110,9 +121,9 @@ public class WeightedWindowedClassificationProcess {
 						types[i] = mode;
 				
 					}
-					else{
-						types[i] = "NONE";
-					}
+					//else{
+					//	types[i] = "NONE";
+					//}
 				}
 				
 				return types;

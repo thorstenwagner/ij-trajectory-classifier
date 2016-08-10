@@ -50,6 +50,7 @@ import org.knowm.xchart.Chart;
 import org.knowm.xchart.Series;
 import org.knowm.xchart.SeriesMarker;
 import org.knowm.xchart.SwingWrapper;
+import org.renjin.gnur.api.R_ftp_http;
 
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
@@ -59,6 +60,7 @@ import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
 import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
 import de.biomedical_imaging.traJ.features.AsymmetryFeature;
+import de.biomedical_imaging.traJ.features.BoundednessFeature;
 import de.biomedical_imaging.traJ.features.EfficiencyFeature;
 import de.biomedical_imaging.traJ.features.ElongationFeature;
 import de.biomedical_imaging.traJ.features.FractalDimensionFeature;
@@ -87,8 +89,7 @@ public class TraJClassifier_Debug {
 	public static void main(String[] args) {
 		
 		TraJClassifier_Debug db = new TraJClassifier_Debug();
-		importTracksAndShow();
-		//testSubsampling();
+		db.showProblematicTrack();
 		
 	
 	}
@@ -167,97 +168,98 @@ public class TraJClassifier_Debug {
 		tclass.run("");
 	}
 	
-	public static void showTestScene(){
+	public void showProblematicTrack(){
+		String modelpath="";
+		try {
+			modelpath= ExportResource("/randomForestModel.RData");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		ExportImportTools eit = new ExportImportTools();
+		ArrayList<Trajectory> tracks = eit.importTrajectoryDataFromCSV("/home/thorsten/subdiffusion_alpha.csv");
+		Trajectory t = tracks.get(0);
+		PowerLawFeature pwf = new PowerLawFeature(t, 10, 1, t.size()/3);
+		double[] ev = pwf.evaluate();
+		double a = ev[0];
+		double D = ev[1];
+		Chart c = VisualizationUtils.getMSDLineWithPowerModelChart(t, 1, t.size()/3, 1.0/10, 0.4, D*10);
+		System.out.println("alpha: " + a);
+		VisualizationUtils.plotChart(c);
+	}
+	
+	public void showTestScene(){
 		CentralRandomNumberGenerator.getInstance().setSeed(9);
-		double diffusioncoefficient = 50;//9.02*Math.pow(10,-2); //[µm^2/s];
+		String modelpath="";
+		try {
+			modelpath= ExportResource("/randomForestModel.RData");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		int w = 40;
+		
+		double diffusioncoefficient = 9.02;
 		double timelag = 1.0/30;
 		double[] driftspeed = {0, 0.27,1,2.4}; // µm/s
-		double angleVelocity = Math.PI/4; //rad/s
-		int simtracklength = 500;
+		double angularVelocity = Math.PI/4; //rad/s
+		int numberOfSteps = 500;
 		int diffusionToNoiseRatio = 1;
 		double sigmaPosNoise = Math.sqrt(2*diffusioncoefficient*timelag)/diffusionToNoiseRatio; 
 		
-		double SNR = 5;
-		double r = 13;
-		double boundness = 1.5;
+		double SNR = 2;
+		double boundedness = 3;
+		double radius_confined = Math.sqrt(BoundednessFeature.a(w)*diffusioncoefficient*timelag/(4*boundedness));
+		System.out.println("Radius confined" + radius_confined + " µm");
+		double R = 8;
+		double velocity = Math.sqrt(R*4*diffusioncoefficient/(w*timelag));
+		System.out.println("Velocity " + velocity + " µm/s");
+
 		double Dc = diffusioncoefficient;
-		double rsig = Math.sqrt(Dc*timelag)/SNR;
-		System.out.println("RSIG: " + rsig);
-		int w = 60;
+		double rsig_1 = Math.sqrt(Dc*timelag)/SNR;
+		double rsig_2 = Math.sqrt(Dc*timelag+velocity*velocity*timelag*timelag)/SNR;
+		System.out.println("Sigma 1: " + rsig_1 + " Sigma 2: " + rsig_2);
 		
-		AbstractSimulator sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
+		
+		//FREE -> Active -> Confined -> Active -> Anomalous
+		Trajectory combinedTrajectory = new Trajectory(2);
+		
+		AbstractSimulator simFree = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, numberOfSteps);
 		ArrayList<Trajectory> t = new ArrayList<Trajectory>();
-		Trajectory tr = sim.generateTrajectory();
-		//tr.setRelativStartTimepoint(1);
-		//tr.scale(1.0/0.166);
-		tr.offset(500, 500, 0);
-		ArrayList<Chart> lc = new ArrayList<Chart>();
-		Chart c = VisualizationUtils.getTrajectoryChart(tr);
-		lc.add(c);
-		//t.add(tr);
+		Trajectory trFree = simFree.generateTrajectory();
+		trFree = SimulationUtil.addPositionNoise(trFree, rsig_1);
 		
+		ActiveTransportSimulator simActive = new ActiveTransportSimulator(velocity, angularVelocity, timelag, 2, numberOfSteps);
+		Trajectory trDirected = TrajectoryUtil.combineTrajectory(simActive.generateTrajectory(), simFree.generateTrajectory());
+		trDirected = SimulationUtil.addPositionNoise(trDirected, rsig_2);
+		combinedTrajectory = TrajectoryUtil.concactTrajectorie(trFree, trDirected);
 		
-		sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, 2000, 0.5);
-		Trajectory tr2 = sim.generateTrajectory();
-		tr2 = tr2.subList(0, simtracklength+1);
-		tr =TrajectoryUtil.concactTrajectorie(tr, tr2);
-		tr = SimulationUtil.addPositionNoise(tr, rsig);
-		t.add(tr);
+		ConfinedDiffusionSimulator confSim = new ConfinedDiffusionSimulator(diffusioncoefficient, timelag, radius_confined, 2, numberOfSteps);
+		Trajectory trConfined = confSim.generateTrajectory();
+		trConfined = SimulationUtil.addPositionNoise(trConfined, rsig_1);
+		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trConfined);
 		
+		Trajectory trDirected2 = TrajectoryUtil.combineTrajectory(simActive.generateTrajectory(), simFree.generateTrajectory());
+		trDirected2 = SimulationUtil.addPositionNoise(trDirected2, rsig_2);
+		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trDirected2);
 		
-
-		double radius_confined = Math.sqrt(((-79.751+4.051*w)*Dc*timelag)/(4*boundness));
-		System.out.println("Radius: " + radius_confined);
-
-		sim = new ConfinedDiffusionSimulator(diffusioncoefficient,timelag,radius_confined,2,500);
-		tr = sim.generateTrajectory();
-		tr = SimulationUtil.addPositionNoise(tr, rsig);
-		tr.offset(250, 250, 0);
-		t.add(tr);
+		AbstractSimulator simAnom = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, numberOfSteps, 0.5);
+		Trajectory trAnom = simAnom.generateTrajectory();
+		trAnom = SimulationUtil.addPositionNoise(trAnom, rsig_1);
+		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trAnom);
 		
-	
+	//	Chart c = VisualizationUtils.getTrajectoryChart(combinedTrajectory);
+		//VisualizationUtils.plotChart(c);
 		
+		RRFClassifierRenjin rrf = new RRFClassifierRenjin(modelpath,timelag);
+		rrf.start();
+		WeightedWindowedClassificationProcess wcp = new WeightedWindowedClassificationProcess();
 		
-		System.out.println("pos_sigma: " + rsig);
-		
-		double tC = w*timelag;
-		double v = Math.sqrt(r*4*Dc/tC);
-		rsig = Math.sqrt(Dc*timelag + v*v*timelag*timelag)/SNR;
-		System.out.println("Velocity: " + v);
-		System.out.println("SNR Active: " + Math.sqrt(Dc*timelag+v*v*timelag*timelag)/rsig);
-		sim = new ActiveTransportSimulator(v, Math.PI/4, timelag, 2, simtracklength);
-		tr = sim.generateTrajectory();
-		tr = SimulationUtil.addPositionNoise(tr, rsig);
-		tr.offset(250, 750, 0);
-		t.add(tr);
-		
-		tr = sim.generateTrajectory();
-		sim = new FreeDiffusionSimulator(Dc, timelag, 2, simtracklength);
-		tr2 = sim.generateTrajectory();
-		
-		tr = TrajectoryUtil.combineTrajectory(tr, tr2);
-		System.out.println("rsig" + rsig);
-		tr = SimulationUtil.addPositionNoise(tr, rsig);
-		tr.offset(500,250, 0);
-		t.add(tr);
-		
-		new ImageJ();
-		IJ.getInstance().show(true);
-		ImageStack is = new ImageStack(1000, 1000);
-		for(int i = 0; i < 1005; i++){
-			is.addSlice(new ByteProcessor(1000, 1000));
-		}
-		
-		ImagePlus img = new ImagePlus("", is);
-		img.show();
-		
-		TraJClassifier_ tclass = new TraJClassifier_();
-		tclass.setTracksToClassify(t);
-		final long timeStart = System.currentTimeMillis(); 
-
-		tclass.run("DEBUG");
-		final long timeEnd = System.currentTimeMillis(); 
-	    System.out.println("Laufzeit: " + (timeEnd - timeStart) + " Millisek."); 
+		String[] classes = wcp.windowedClassification(combinedTrajectory, rrf, w,1);
+		//classes = movingMode(classes, w/2);
+		showTrack(combinedTrajectory, classes);
 	}
 	
 	
@@ -274,7 +276,7 @@ public class TraJClassifier_Debug {
 		System.out.println(f.getShortName()+": " + f.evaluate()[0]);
 		
 		f  = new RegressionDiffusionCoefficientEstimator(t, 1.0/timelag, 1, 3);
-		PowerLawFeature f2 = new PowerLawFeature(t, 1, t.size()/3,0.5,f.evaluate()[0]);
+		PowerLawFeature f2 = new PowerLawFeature(t, 1/timelag,1, t.size()/3,0.5,f.evaluate()[0]);
 		System.out.println(f.getShortName()+": " + f2.evaluate()[0]);
 
 	//	StandardDeviationDirectionFeature sdf = new StandardDeviationDirectionFeature(t, timelagForDirectionDeviationLong);

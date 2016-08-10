@@ -81,6 +81,7 @@ public class TraJClassifier_ implements PlugIn {
 	private double minTrackLength;
 	private int windowSizeClassification;
 	private double minDiffusionCoefficient;
+	private int minSegmentLength;
 	private double minAlpha;
 	private double pixelsize;
 	private int resampleRate;
@@ -90,12 +91,13 @@ public class TraJClassifier_ implements PlugIn {
 	private ArrayList<Trajectory> tracksToClassify;
 	//private ArrayList<Trajectory> tracks 
 	private static TraJClassifier_ instance;
-	
+	ArrayList<Trajectory> parentTrajectories;
 	
 	public TraJClassifier_() {
 		minTrackLength=160;
 		windowSizeClassification=60;
 		minDiffusionCoefficient=0;
+		minSegmentLength=30;
 		pixelsize=0.166;
 		timelag=1.0/30;
 		resampleRate=1;
@@ -167,8 +169,8 @@ public class TraJClassifier_ implements PlugIn {
 			GenericDialog gd = new GenericDialog("Parameters Classification");
 		
 			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
-			System.out.println("window: " + windowSizeClassification);
 			gd.addSlider("Windowsize", 1, 1000, windowSizeClassification);
+			gd.addSlider("Min. segment length",30,1000,windowSizeClassification);
 			gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", minDiffusionCoefficient, 0);
 			gd.addNumericField("Min. alpha", 0.05, 3);
 			gd.addNumericField("Resample rate", 1, 0);
@@ -184,6 +186,7 @@ public class TraJClassifier_ implements PlugIn {
 			}
 			minTrackLength = gd.getNextNumber();
 			windowSizeClassification = (int) (gd.getNextNumber()/2);
+			minSegmentLength = (int)gd.getNextNumber();
 			minDiffusionCoefficient = gd.getNextNumber();
 			minAlpha = gd.getNextNumber();
 			resampleRate = (int)gd.getNextNumber();
@@ -215,7 +218,7 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Classification, Segmentation & Visualization
 		 */
-		RRFClassifierRenjin rrf = new RRFClassifierRenjin(modelpath,timelag);
+		RRFClassifierRenjin rrf = new RRFClassifierRenjin(modelpath,resampleRate*timelag);
 		rrf.start();
 		WeightedWindowedClassificationProcess wcp = new WeightedWindowedClassificationProcess();
 		
@@ -233,10 +236,10 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 *  Remove tracks which are too short
 		 */
-		ArrayList<Trajectory> minLengthTracks = new ArrayList<Trajectory>();
+		parentTrajectories = new ArrayList<Trajectory>();
 		for (Trajectory track : tracksToClassify) {
 			if(track.size() > minTrackLength){
-				minLengthTracks.add(track);
+				parentTrajectories.add(track);
 			}
 		}
 		
@@ -245,20 +248,13 @@ public class TraJClassifier_ implements PlugIn {
 		 */
 		classifiedTrajectories = new ArrayList<Subtrajectory>();
 		int subidcounter = 1;
-		for (Trajectory track : minLengthTracks) {
+		for (Trajectory track : parentTrajectories) {
 			j++;
-			IJ.showProgress(j, minLengthTracks.size());
-			Trajectory mTrack = null;
-			if(resampleRate>1){
-		
-				mTrack = TrajectoryUtil.resample(track, resampleRate);
-				rrf.setTimelag(resampleRate*timelag);
-			}else{
-				mTrack = track;
-			}
-		
-			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification);
-		
+			IJ.showProgress(j, parentTrajectories.size());
+			Trajectory mTrack = track;
+	
+			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification,resampleRate);
+		/*
 			if(resampleRate>1){
 				String[] newclasses = new String[track.size()];
 				for(int i = 0; i < newclasses.length; i=i+resampleRate){
@@ -274,6 +270,10 @@ public class TraJClassifier_ implements PlugIn {
 				}
 				classes = newclasses;
 			}
+			*/
+			
+			//Moving mode
+			classes = movingMode(classes, 10);
 			
 			Subtrajectory tr = new Subtrajectory(track,2);
 			tr.setID(subidcounter);
@@ -309,20 +309,22 @@ public class TraJClassifier_ implements PlugIn {
 		 * FILTER
 		 */
 		
+		
+		
 		//Segments have to contain at least 30 steps
 		for(int i = 0; i < classifiedTrajectories.size(); i++){
-			if(classifiedTrajectories.get(i).size()<30){
+			if(classifiedTrajectories.get(i).size()<minSegmentLength){
 				classifiedTrajectories.remove(i);
 				i--;
 			}
 		}
 	
 		//Segments smaller than the window size seems to be very error prone. Set them to "None".
-		for (Trajectory trajectory : classifiedTrajectories) {
-			if(trajectory.size()<windowSizeClassification*2){
-				trajectory.setType("NONE");
-			}
-		}
+	//	for (Trajectory trajectory : classifiedTrajectories) {
+	//		if(trajectory.size()<windowSizeClassification*2){
+	//			trajectory.setType("NONE");
+//			}
+//		}
 		
 		/*
 		 * Visualization 
@@ -415,15 +417,16 @@ public class TraJClassifier_ implements PlugIn {
 					
 					ActiveTransportParametersFeature apf = new ActiveTransportParametersFeature(t, timelag);
 					
-					dcEstim = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,t.size()-1);
-					dc = dcEstim.evaluate()[0];
+					//dcEstim = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,t.size()-1);
+					//dc = dcEstim.evaluate()[0];
 					res = apf.evaluate();
 					rt.addValue("D", formatter.format(res[0]));
 					rt.addValue("Velocity_FIT", res[1]);
 					
 					break;
 				case "NORM. DIFFUSION":
-					dcEstim = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
+					
+					dcEstim = new RegressionDiffusionCoefficientEstimator(t, 1/timelag, 1, t.size()/3);
 					dc = dcEstim.evaluate()[0];
 					rt.addValue("D", formatter.format(dc));
 					break;
@@ -438,7 +441,7 @@ public class TraJClassifier_ implements PlugIn {
 					rt.addValue("D", formatter.format(p[1]));
 					break;
 				case "SUBDIFFUSION":
-					PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
+					PowerLawFeature pwf = new PowerLawFeature(t, 1/timelag,1, t.size()/3);
 					res = pwf.evaluate();
 					dc = res[1];
 					
@@ -450,7 +453,7 @@ public class TraJClassifier_ implements PlugIn {
 					break;
 				}
 				
-				AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
+				AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1/timelag,1, t.size()/3);
 				res = pwf.evaluate();
 				double alpha = res[0];
 				
@@ -549,51 +552,69 @@ public class TraJClassifier_ implements PlugIn {
 			}
 		}
 		
-		ResultsTable parents = new ResultsTable();
-		for(int i = 0; i < minLengthTracks.size(); i++){
+		ResultsTable parents = new TraJResultsTable();
+		for(int i = 0; i < parentTrajectories.size(); i++){
 			parents.incrementCounter();
-			Trajectory t = minLengthTracks.get(i);
+			Trajectory t = parentTrajectories.get(i);
 			parents.addValue("ID", t.getID());
 			parents.addValue("LENGTH", t.size());
 			parents.addValue("START", t.getRelativeStartTimepoint());
 			parents.addValue("END", t.getRelativeStartTimepoint()+t.size()-1);
-			int subCount =0;
-			int normCount =0;
-			int directedCount =0;
-			int confCount=0;
-			int stalledCount=0;
-			int noneCount =0;
+			int subPosCount =0;
+			int subSegCount =0;
+			int normPosCount =0;
+			int normSegCount = 0;
+			int directedPosCount =0;
+			int directSegCount = 0;
+			int confPosCount=0;
+			int confSegCount=0;
+			int stalledPosCount=0;
+			int stalledSegCount=0;
+			int nonePosCount =0;
+			int noneSegCount=0;
 			ArrayList<Subtrajectory> sameParent = Subtrajectory.getTracksWithSameParant(classifiedTrajectories, t.getID());
 			for (Subtrajectory sub : sameParent) {
 				switch (sub.getType()) {
 				case "DIRECTED/ACTIVE":
-					directedCount+=sub.size();
+					directedPosCount+=sub.size();
+					directSegCount++;
 					break;
 				case "NORM. DIFFUSION":
-					normCount+=sub.size();
+					normPosCount+=sub.size();
+					normSegCount++;
 					break;
 				case "CONFINED":
-					confCount+=sub.size();
+					confPosCount+=sub.size();
+					confSegCount++;
 					break;
 				case "SUBDIFFUSION":
-					subCount+=sub.size();
+					subPosCount+=sub.size();
+					subSegCount++;
 					break;
 				case "STALLED":
-					stalledCount+=sub.size();
+					stalledPosCount+=sub.size();
+					stalledSegCount++;
 					break;
 				case "NONE":
-					noneCount+=sub.size();
+					nonePosCount+=sub.size();
+					noneSegCount++;
 					break;
 				default:
 					break;
 				}
 			}
-			parents.addValue("#POS_NORM", normCount);
-			parents.addValue("#POS_SUB", subCount);
-			parents.addValue("#POS_CONF", confCount);
-			parents.addValue("#POS_DIRECTED", directedCount);
-			parents.addValue("#POS_STALLED", stalledCount);
-			parents.addValue("#POS_NONE", noneCount);
+			parents.addValue("#SEG_NORM", normSegCount);
+			parents.addValue("#POS_NORM", normPosCount);
+			parents.addValue("#SEG_SUB", subSegCount);
+			parents.addValue("#POS_SUB", subPosCount);
+			parents.addValue("#SEG_CONF", confSegCount);
+			parents.addValue("#POS_CONF", confPosCount);
+			parents.addValue("#SEG_DIRECTED", directSegCount);
+			parents.addValue("#POS_DIRECTED", directedPosCount);
+			parents.addValue("#POS_STALLED", stalledSegCount);
+			parents.addValue("#POS_STALLED", stalledPosCount);
+			parents.addValue("#POS_NONE", noneSegCount);
+			parents.addValue("#POS_NONE", nonePosCount);
 		}
 		
 		
@@ -605,7 +626,7 @@ public class TraJClassifier_ implements PlugIn {
 			rtables.get(rt).show(rt + " trajectories");
 		}
 		
-		IJ.log("Done");
+	
 	}
 	
 	public boolean isStalled(double dc,double alpha){
@@ -645,10 +666,10 @@ public class TraJClassifier_ implements PlugIn {
 		String[] medTypes = new String[types.size()];
 
 		for(int i = 0; i < n; i++){
-			medTypes[i] = "NONE";
+			medTypes[i] = types.get(i);
 		}
 		for(int i = types.size()- n; i < types.size(); i++){
-			medTypes[i] = "NONE";
+			medTypes[i] = types.get(i);
 		}
 
 		for(int i = 0; i < (types.size()-windowsize+1);i++){
@@ -665,6 +686,10 @@ public class TraJClassifier_ implements PlugIn {
 	
 	public ArrayList<Subtrajectory> getClassifiedTrajectories(){
 		return classifiedTrajectories;
+	}
+	
+	public ArrayList<Trajectory> getParentTrajectories(){
+		return parentTrajectories;
 	}
 	
 	

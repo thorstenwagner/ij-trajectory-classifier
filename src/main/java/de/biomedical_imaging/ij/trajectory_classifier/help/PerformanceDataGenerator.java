@@ -49,7 +49,7 @@ public class PerformanceDataGenerator {
 			e.printStackTrace();
 		}
 		// generateNormalDiffData();
-		generateActiveData();
+		//generateActiveData();
 		generateConfinedData();
 		generateSubdiffusionData();
 	}
@@ -94,7 +94,7 @@ public class PerformanceDataGenerator {
 					AbstractSimulator sim = new CombinedSimulator(sim1, sim2);
 					Trajectory t = sim.generateTrajectory();
 					t = SimulationUtil.addPositionNoise(t, sigmaPosNoise);
-					String[] res = wcp.windowedClassification(t, rrf, w);
+					String[] res = wcp.windowedClassification(t, rrf, w,1);
 					val[i] = getCorrectNess(res, "DIRECTED/ACTIVE");
 				}
 				double meancorrectness = m.evaluate(val);
@@ -151,7 +151,7 @@ public class PerformanceDataGenerator {
 					Trajectory t = sim1.generateTrajectory();
 					t = t.subList(0, tracklength);
 					t = SimulationUtil.addPositionNoise(t, sigmaPosNoise);
-					String[] res = wcp.windowedClassification(t, rrf, w);
+					String[] res = wcp.windowedClassification(t, rrf, w,1);
 					if (i == 5) {
 						System.out.println("res " + res[250]);
 					}
@@ -181,7 +181,7 @@ public class PerformanceDataGenerator {
 		int tracklength = 500;
 		double dt = 1.0 / 30;
 		double B = 0.5;
-		double[] SNRs = { 1, 2, 3, 4, 5 };
+		double[] SNRs = {2, 3, 4, 5 };
 
 		int N = 200;
 		int w = 30;
@@ -211,7 +211,7 @@ public class PerformanceDataGenerator {
 
 					Trajectory t = sim1.generateTrajectory();
 					t = SimulationUtil.addPositionNoise(t, sigmaPosNoise);
-					String[] res = wcp.windowedClassification(t, rrf, w);
+					String[] res = wcp.windowedClassification(t, rrf, w,1);
 					val[i] = getCorrectNess(res, "CONFINED");
 				}
 				double meancorrectness = m.evaluate(val);
@@ -263,7 +263,7 @@ public class PerformanceDataGenerator {
 							diffusioncoefficient, dt, 2, tracklength);
 					Trajectory t = sim.generateTrajectory();
 					t = SimulationUtil.addPositionNoise(t, sigmaPosNoise);
-					String[] res = wcp.windowedClassification(t, rrf, w);
+					String[] res = wcp.windowedClassification(t, rrf, w,1);
 					val[i] = getCorrectNess(res, "NORM. DIFFUSION");
 				}
 				double meancorrectness = m.evaluate(val);
@@ -300,7 +300,7 @@ public class PerformanceDataGenerator {
 				double corv = cor[i];
 				double sd = corsd[i];
 				double sem = semcor[i];
-				nextLine = new String[] { "" + parv, "" + corv, "" + sd };
+				nextLine = new String[] { "" + parv, "" + corv, "" + sd + "" + sem};
 				writer.writeNext(nextLine);
 
 			}

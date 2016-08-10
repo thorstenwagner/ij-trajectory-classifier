@@ -151,7 +151,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 				initAlpha = 0.5;
 			}
 			
-			PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3,initAlpha,initDC);
+			PowerLawFeature pwf = new PowerLawFeature(t, 1/timelag,1, t.size()/3,initAlpha,initDC);
 			pool.submit(new FeatureWorker(power, i,pwf, EVALTYPE.FIRST));
 			pool.submit(new FeatureWorker(pwrDCs, i,pwf, EVALTYPE.SECOND));
 			

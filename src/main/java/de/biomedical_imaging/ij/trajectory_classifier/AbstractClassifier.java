@@ -38,4 +38,5 @@ public abstract class AbstractClassifier {
 	public abstract String[] classify(ArrayList<Trajectory> t);
 	
 	public abstract double[] getConfindence();
+
 }

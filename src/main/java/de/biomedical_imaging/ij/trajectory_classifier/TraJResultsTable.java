@@ -50,6 +50,15 @@ import ij.text.TextPanel;
 
 public class TraJResultsTable extends ResultsTable {
 	
+	boolean isParentTable;
+	public TraJResultsTable() {
+		this.isParentTable = false;
+	}
+	
+	public TraJResultsTable(boolean isParentTable) {
+		this.isParentTable = isParentTable;
+	}
+	
 	@Override
 	public void show(String windowTitle) {
 		// TODO Auto-generated method stub
@@ -76,13 +85,19 @@ public class TraJResultsTable extends ResultsTable {
 					ArrayList<Chart> charts = new ArrayList<Chart>();
 					if(selectionStart>=0 && selectionStart==selectionEnd){
 						int id = (int) table.getValue("ID", selectionStart);
-						ArrayList<? extends Trajectory> cTracks = TraJClassifier_.getInstance().getClassifiedTrajectories();
+						
+						ArrayList<? extends Trajectory> cTracks;
+						if(isParentTable){
+							cTracks = TraJClassifier_.getInstance().getParentTrajectories();
+						}else{
+							cTracks = TraJClassifier_.getInstance().getClassifiedTrajectories();
+						}
 						Trajectory t = TrajectoryUtil.getTrajectoryByID(cTracks, id);
 						Chart c = VisualizationUtils.getTrajectoryChart("Trajectory with ID " + id,t);
 						charts.add(c);
 						double timelag = TraJClassifier_.getInstance().getTimelag();
 						if(t.getType().equals("SUBDIFFUSION")){
-							PowerLawFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
+							PowerLawFeature pwf = new PowerLawFeature(t, 1/timelag,1, t.size()/3);
 							double[] res = pwf.evaluate();
 							c = VisualizationUtils.getMSDLineWithPowerModelChart(t, 1, t.size()/3, timelag, res[0], res[1]);
 							charts.add(c);
