@@ -23,6 +23,7 @@ SOFTWARE.
  */
 
 package de.biomedical_imaging.ij.trajectory_classifier;
+import java.awt.AWTEvent;
 import java.awt.Color;
 import java.awt.Font;
 import java.io.File;
@@ -67,6 +68,7 @@ import de.biomedical_imaging.traj.math.ActiveTransportMSDLineFit;
 import ij.IJ;
 import ij.Prefs;
 import ij.WindowManager;
+import ij.gui.DialogListener;
 import ij.gui.GenericDialog;
 import ij.gui.Overlay;
 import ij.gui.Roi;
@@ -80,9 +82,7 @@ public class TraJClassifier_ implements PlugIn {
 	private double timelag;
 	private double minTrackLength;
 	private int windowSizeClassification;
-	private double minDiffusionCoefficient;
 	private int minSegmentLength;
-	private double minAlpha;
 	private double pixelsize;
 	private int resampleRate;
 	private boolean showID;
@@ -96,7 +96,6 @@ public class TraJClassifier_ implements PlugIn {
 	public TraJClassifier_() {
 		minTrackLength=160;
 		windowSizeClassification=60;
-		minDiffusionCoefficient=0;
 		minSegmentLength=30;
 		pixelsize=0.166;
 		timelag=1.0/30;
@@ -159,7 +158,6 @@ public class TraJClassifier_ implements PlugIn {
 			//Load previous settings
 			minTrackLength = Prefs.get("trajclass.minTrackLength", 160);
 			windowSizeClassification = (int) Prefs.get("trajclass.windowSize", 60);
-			minDiffusionCoefficient = Prefs.get("trajclass.minDC", 0);
 			pixelsize = Prefs.get("trajclass.pixelsize", 0.166);
 			timelag = 1.0/Prefs.get("trajclass.framerate",30);
 			showID = Prefs.getBoolean("trajclass.showID", true);
@@ -171,8 +169,6 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
 			gd.addSlider("Windowsize", 1, 1000, windowSizeClassification);
 			gd.addSlider("Min. segment length",30,1000,windowSizeClassification);
-			gd.addNumericField("Min. diffusion coeffcient (µm^2 / s)", minDiffusionCoefficient, 0);
-			gd.addNumericField("Min. alpha", 0.05, 3);
 			gd.addNumericField("Resample rate", 1, 0);
 			gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
 			gd.addNumericField("Framerate", 1/timelag, 0);
@@ -180,6 +176,26 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addCheckbox("Show overview classes", showOverviewClasses);
 			gd.addMessage("* Set to zero if the imported data is already correctly scaled.");
 			gd.addHelp("http://forum.imagej.net");
+			gd.addDialogListener(new DialogListener() {
+				
+				@Override
+				public boolean dialogItemChanged(GenericDialog gd, AWTEvent e) {
+					minTrackLength = gd.getNextNumber();
+					windowSizeClassification = (int) (gd.getNextNumber());
+					minSegmentLength = (int)gd.getNextNumber();
+					resampleRate = (int)gd.getNextNumber();
+					pixelsize = gd.getNextNumber();
+					timelag = 1/gd.getNextNumber();
+					showID = gd.getNextBoolean();
+					showOverviewClasses = gd.getNextBoolean();
+					
+					boolean valid = windowSizeClassification/resampleRate>=30;
+					if(!valid){
+						IJ.showMessage("The ratio of window size / resample rate should be at least 30.");
+					}
+					return valid;
+				}
+			});
 			gd.showDialog();
 			if(gd.wasCanceled()){
 				return;
@@ -187,8 +203,6 @@ public class TraJClassifier_ implements PlugIn {
 			minTrackLength = gd.getNextNumber();
 			windowSizeClassification = (int) (gd.getNextNumber()/2);
 			minSegmentLength = (int)gd.getNextNumber();
-			minDiffusionCoefficient = gd.getNextNumber();
-			minAlpha = gd.getNextNumber();
 			resampleRate = (int)gd.getNextNumber();
 			pixelsize = gd.getNextNumber();
 			timelag = 1/gd.getNextNumber();
@@ -198,7 +212,6 @@ public class TraJClassifier_ implements PlugIn {
 			// Save settings
 			Prefs.set("trajclass.minTrackLength", minTrackLength);
 			Prefs.set("trajclass.windowSize", windowSizeClassification*2);
-			Prefs.set("trajclass.minDC", minDiffusionCoefficient);
 			Prefs.set("trajclass.pixelsize", pixelsize);
 			Prefs.set("trajclass.framerate", 1/timelag);
 			Prefs.set("trajclass.showID", showID);
@@ -230,8 +243,6 @@ public class TraJClassifier_ implements PlugIn {
 		mapTypeToColor.put("NORM. DIFFUSION", Color.RED);
 		mapTypeToColor.put("CONFINED", Color.YELLOW);
 		mapTypeToColor.put("SUBDIFFUSION", Color.GREEN);
-		mapTypeToColor.put("STALLED", Color.ORANGE);
-		mapTypeToColor.put("NONE", Color.LIGHT_GRAY);
 
 		/*
 		 *  Remove tracks which are too short
@@ -254,24 +265,7 @@ public class TraJClassifier_ implements PlugIn {
 			Trajectory mTrack = track;
 	
 			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification,resampleRate);
-		/*
-			if(resampleRate>1){
-				String[] newclasses = new String[track.size()];
-				for(int i = 0; i < newclasses.length; i=i+resampleRate){
-					String clazz = classes[(int)i/resampleRate];
-					newclasses[i] = clazz;
-					for(int k = i+1; k < i+1+resampleRate; k++){
-						if(k<newclasses.length){
-							newclasses[k] = clazz;
-						}
-					}
-					
-					
-				}
-				classes = newclasses;
-			}
-			*/
-			
+
 			//Moving mode
 			classes = movingMode(classes, 10);
 			
@@ -286,7 +280,6 @@ public class TraJClassifier_ implements PlugIn {
 			tr.setType(prevCls);
 			
 			for(int i = 1; i < classes.length; i++){
-				//System.out.println("i " + i + " class: "+classes[i]);
 				if(prevCls == classes[i]){
 					tr.add(track.get(i).x, track.get(i).y,0);
 				}else{;
@@ -311,7 +304,7 @@ public class TraJClassifier_ implements PlugIn {
 		
 		
 		
-		//Segments have to contain at least 30 steps
+		//Remove segments smaller then the minimum segment length
 		for(int i = 0; i < classifiedTrajectories.size(); i++){
 			if(classifiedTrajectories.get(i).size()<minSegmentLength){
 				classifiedTrajectories.remove(i);
@@ -319,12 +312,6 @@ public class TraJClassifier_ implements PlugIn {
 			}
 		}
 	
-		//Segments smaller than the window size seems to be very error prone. Set them to "None".
-	//	for (Trajectory trajectory : classifiedTrajectories) {
-	//		if(trajectory.size()<windowSizeClassification*2){
-	//			trajectory.setType("NONE");
-//			}
-//		}
 		
 		/*
 		 * Visualization 
@@ -374,13 +361,7 @@ public class TraJClassifier_ implements PlugIn {
 			IJ.getImage().updateAndRepaintWindow();
 		}
 		
-		/*
-		 * Export classified trajectories
-		 */
-		//IJ.log("Export");
-		//ExportImportTools iotools = new ExportImportTools();
-		//iotools.exportTrajectoryDataAsCSV(classifiedTrajectories, "/home/thorsten/myclassifiedtracks.csv");
-		
+
 		/*
 		 * Fill results table
 		 */
@@ -391,8 +372,6 @@ public class TraJClassifier_ implements PlugIn {
 		rtables.put("NORM. DIFFUSION", new TraJResultsTable());
 		rtables.put("SUBDIFFUSION", new TraJResultsTable());
 		rtables.put("CONFINED", new TraJResultsTable());
-		rtables.put("STALLED", new TraJResultsTable());
-		rtables.put("NONE", new TraJResultsTable());
 
 		for (int i = 0; i < classifiedTrajectories.size(); i++) {
 				IJ.showProgress(i, classifiedTrajectories.size());
@@ -446,8 +425,6 @@ public class TraJClassifier_ implements PlugIn {
 					dc = res[1];
 					
 					rt.addValue("D", formatter.format(dc));
-					break;
-				case "NONE":
 					break;
 				default:
 					break;
@@ -511,46 +488,14 @@ public class TraJClassifier_ implements PlugIn {
 					res = cest.evaluate();
 					rt.addValue("Loc. noise_sigma", (res[1]+res[2])/2);
 					
-					/*
-					
-					ShortTimeLongTimeDiffusioncoefficentRatio ltstratio = new ShortTimeLongTimeDiffusioncoefficentRatio(t, 2);
-					v = ltstratio.evaluate()[0];
-					rt.addValue("LTSTRatio", v);
-					*/
 				}
 
 		}
 		
 		/*
-		 * Detects stalled diffusion by thresholding alpha or diffusion coefficient
+		 * Fill parents results table
 		 */
 		Iterator<String> rtIt = rtables.keySet().iterator();
-		ResultsTable stalledRt = rtables.get("STALLED");
-		while(rtIt.hasNext()){
-			String rt = rtIt.next();
-			ResultsTable rt2 =  rtables.get(rt);
-			if(!rt.equals("NONE") && !rt.equals("STALLED") && rt2.getCounter()>0){
-				for(int i = 0; i < rt2.getCounter(); i++){
-					double alpha = rt2.getValue("ALPHA", i);
-					double dc = Double.parseDouble(rt2.getStringValue("D", i));
-			
-					if(isStalled(dc, alpha)){
-						String headings[] = rt2.getHeadings();
-			
-						stalledRt.incrementCounter();
-						for (String h : headings) {
-							if(h.equals("CLASS") || h.equals("D")){
-								stalledRt.addValue(h, rt2.getStringValue(h, i));
-							}else{
-								stalledRt.addValue(h, rt2.getValue(h, i));
-							}
-						}
-						rt2.deleteRow(i);
-						i--;
-					}
-				}
-			}
-		}
 		
 		ResultsTable parents = new TraJResultsTable();
 		for(int i = 0; i < parentTrajectories.size(); i++){
@@ -568,10 +513,7 @@ public class TraJClassifier_ implements PlugIn {
 			int directSegCount = 0;
 			int confPosCount=0;
 			int confSegCount=0;
-			int stalledPosCount=0;
-			int stalledSegCount=0;
-			int nonePosCount =0;
-			int noneSegCount=0;
+
 			ArrayList<Subtrajectory> sameParent = Subtrajectory.getTracksWithSameParant(classifiedTrajectories, t.getID());
 			for (Subtrajectory sub : sameParent) {
 				switch (sub.getType()) {
@@ -591,14 +533,6 @@ public class TraJClassifier_ implements PlugIn {
 					subPosCount+=sub.size();
 					subSegCount++;
 					break;
-				case "STALLED":
-					stalledPosCount+=sub.size();
-					stalledSegCount++;
-					break;
-				case "NONE":
-					nonePosCount+=sub.size();
-					noneSegCount++;
-					break;
 				default:
 					break;
 				}
@@ -611,10 +545,6 @@ public class TraJClassifier_ implements PlugIn {
 			parents.addValue("#POS_CONF", confPosCount);
 			parents.addValue("#SEG_DIRECTED", directSegCount);
 			parents.addValue("#POS_DIRECTED", directedPosCount);
-			parents.addValue("#POS_STALLED", stalledSegCount);
-			parents.addValue("#POS_STALLED", stalledPosCount);
-			parents.addValue("#POS_NONE", noneSegCount);
-			parents.addValue("#POS_NONE", nonePosCount);
 		}
 		
 		
@@ -629,12 +559,6 @@ public class TraJClassifier_ implements PlugIn {
 	
 	}
 	
-	public boolean isStalled(double dc,double alpha){
-		if(dc<minDiffusionCoefficient || alpha < minAlpha){
-			return true;
-		}
-		return false;
-	}
 	
 	
 	public double getTimelag(){
@@ -746,14 +670,6 @@ public class TraJClassifier_ implements PlugIn {
 
 	public void setMinTrackLength(double minTrackLength) {
 		this.minTrackLength = minTrackLength;
-	}
-	
-	public double getMinDiffusionCoefficient() {
-		return minDiffusionCoefficient;
-	}
-
-	public void setMinDiffusionCoefficient(double minDiffusionCoefficient) {
-		this.minDiffusionCoefficient = minDiffusionCoefficient;
 	}
 
 	public double getPixelsize() {
