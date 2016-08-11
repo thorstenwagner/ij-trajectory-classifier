@@ -40,6 +40,7 @@ import de.biomedical_imaging.traJ.TrajectoryUtil;
 
 public class WeightedWindowedClassificationProcess {
 	
+	private double[] posConfidence =null;
 	/**
 	 * 
 	 * @param t Trajectory to be classified
@@ -69,9 +70,15 @@ public class WeightedWindowedClassificationProcess {
 		return types;
 	}
 	
+	
+	public  double[] getPositionConfidence(){
+		return posConfidence;
+	}
+	
 	protected String[] applyWeightening(String[] res, double[] confidence, int n, int tracklength){
 		
 		String[] types = new String[tracklength];
+		posConfidence = new double[tracklength];
 	//	for(int i = 0; i < types.length; i++){
 	//		types[i] = "NONE";
 	//	}
@@ -97,10 +104,15 @@ public class WeightedWindowedClassificationProcess {
 				}
 				
 				ArrayList<Double[]> weightes = new  ArrayList<Double[]>();
+				ArrayList<Integer[]> Nvotes = new  ArrayList<Integer[]>();
 				for(int i = 0; i < tracklength; i++){
 					Double[] h = new Double[key];
 					Arrays.fill(h, new Double(0));
 					weightes.add(h);
+					
+					Integer[] h1 = new Integer[key];
+					Arrays.fill(h1,new Integer(0));
+					Nvotes.add(h1);
 				}
 				
 	
@@ -111,14 +123,19 @@ public class WeightedWindowedClassificationProcess {
 
 
 						weightes.get(j)[typ]=weightes.get(j)[typ]+confidence[i];
+						Nvotes.get(j)[typ]=Nvotes.get(j)[typ]+1;
 					}
 				}
 
 				for(int i = 0; i < types.length; i++){
 					if(weightes.get(i).length>0){
-						int mode1 = getHighest(weightes.get(i));
+						double[] result = getHighest(weightes.get(i));
+						int mode1 = (int)result[0];
+						double maxv = result[1];
+						double wConf = maxv/Nvotes.get(i)[mode1];
 						String mode = mapIntToType.get(mode1);
 						types[i] = mode;
+						posConfidence[i] = wConf;
 				
 					}
 					//else{
@@ -129,7 +146,7 @@ public class WeightedWindowedClassificationProcess {
 				return types;
 	}
 	
-	private int getHighest(Double[] weightes){
+	private double[] getHighest(Double[] weightes){
 		double max = 0;
 		int maxindex = 0;
 		for(int i = 0; i < weightes.length;i++){
@@ -138,7 +155,7 @@ public class WeightedWindowedClassificationProcess {
 				maxindex = i;
 			}
 		}
-		return maxindex;
+		return new double[]{maxindex,max};
 		
 	}
 	
