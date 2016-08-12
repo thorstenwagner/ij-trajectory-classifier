@@ -160,7 +160,13 @@ public class TraJResultsTable extends ResultsTable {
 					ArrayList<Trajectory> selectedTrajectories = new ArrayList<Trajectory>();
 					for( int i = selectionStart; i <= selectionEnd; i++){
 						int id = (int) table.getValue("ID", i);
-						ArrayList<? extends Trajectory> cTracks = TraJClassifier_.getInstance().getClassifiedTrajectories();
+						
+						ArrayList<? extends Trajectory> cTracks = null;
+						if(isParentTable){
+							cTracks = TraJClassifier_.getInstance().getParentTrajectories();
+						}else{
+							cTracks = TraJClassifier_.getInstance().getClassifiedTrajectories();
+						}
 						Trajectory t = TrajectoryUtil.getTrajectoryByID(cTracks, id);
 						selectedTrajectories.add(t);
 					}

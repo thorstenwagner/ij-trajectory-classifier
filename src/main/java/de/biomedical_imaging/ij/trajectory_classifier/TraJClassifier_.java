@@ -389,8 +389,8 @@ public class TraJClassifier_ implements PlugIn {
 				TraJResultsTable rt = rtables.get(t.getType());
 				
 				rt.incrementCounter();
-				rt.addValue("ID", t.getID());
 				rt.addValue("PARENT-ID", t.getParent().getID());
+				rt.addValue("ID", t.getID());
 				rt.addValue("LENGTH", t.size());
 				rt.addValue("START", t.getRelativeStartTimepoint());
 				rt.addValue("END", t.getRelativeStartTimepoint()+t.size()-1);
