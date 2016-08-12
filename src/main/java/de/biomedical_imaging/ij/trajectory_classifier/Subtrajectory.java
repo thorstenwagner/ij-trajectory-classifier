@@ -35,6 +35,7 @@ public class Subtrajectory extends Trajectory {
 	 */
 	private static final long serialVersionUID = 3846588503781023924L;
 	private Trajectory parent;
+	private double confidence;
 	
 	public Subtrajectory(Trajectory parent, int dimension) {
 		super(dimension);
@@ -60,6 +61,14 @@ public class Subtrajectory extends Trajectory {
 		}
 		
 		return res;
+	}
+	
+	public void setConfidence(double confidence){
+		this.confidence = confidence;
+	}
+	
+	public double getConfidence(){
+		return confidence;
 	}
 
 }

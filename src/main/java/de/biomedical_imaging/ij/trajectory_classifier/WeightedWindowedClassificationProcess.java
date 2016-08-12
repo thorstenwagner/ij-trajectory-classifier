@@ -26,14 +26,9 @@ package de.biomedical_imaging.ij.trajectory_classifier;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
-
-import org.apache.commons.math3.stat.Frequency;
-import org.apache.commons.math3.stat.descriptive.moment.Mean;
 
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
@@ -159,50 +154,7 @@ public class WeightedWindowedClassificationProcess {
 		
 	}
 	
-	private int[] getMode(int[] values, final int begin, final int length) {
-        // Add the values to the frequency table
-        Frequency freq = new Frequency();
-        for (int i = begin; i < begin + length; i++) {
-            final int value = values[i];
-                freq.addValue(Integer.valueOf(value));
-        }
-        List<Comparable<?>> list = freq.getMode();
-        // Convert the list to an array of primitive double
-        int[] modes = new int[2];
-        modes[0] = ((Long) list.get(0)).intValue();
-      //  modes[1] = freq.getCount(Integer.valueOf(modes[0]))/(1.0*length);
-        return modes;
-    }
-	
-	public int findPopular(int[] a) {
-
-	    if (a == null || a.length == 0)
-	        return 0;
-
-	    Arrays.sort(a);
-
-	    int previous = a[0];
-	    int popular = a[0];
-	    int count = 1;
-	    int maxCount = 1;
-
-	    for (int i = 1; i < a.length; i++) {
-	        if (a[i] == previous)
-	            count++;
-	        else {
-	            if (count > maxCount) {
-	                popular = a[i-1];
-	                maxCount = count;
-	            }
-	            previous = a[i];
-	            count = 1;
-	        }
-	    }
-
-	    return count > maxCount ? a[a.length-1] : popular;
-
-	}
-	
+		
 	public double[] arrListToArray(ArrayList<Integer> l){
 		double[] a = new double[l.size()];
 		for(int i = 0; i < l.size(); i++){

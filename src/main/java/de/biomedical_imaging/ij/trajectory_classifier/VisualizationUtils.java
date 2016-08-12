@@ -45,7 +45,7 @@ public class VisualizationUtils {
 		FloatPolygon p = new FloatPolygon();
 		double sumx = 0;
 		double sumy = 0;
-		TextRoi.setFont("TimesRoman", 8, Font.PLAIN);
+		TextRoi.setFont("TimesRoman", 5, Font.PLAIN);
 		for(int i = 0; i < t.getParent().size(); i++){
 			int to = t.size();
 			if(i< t.size()){

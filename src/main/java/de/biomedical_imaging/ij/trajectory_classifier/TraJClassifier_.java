@@ -265,15 +265,18 @@ public class TraJClassifier_ implements PlugIn {
 			Trajectory mTrack = track;
 	
 			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification,resampleRate);
-
+			double[] classConfidence = wcp.getPositionConfidence();
 			//Moving mode
 			classes = movingMode(classes, 10);
-			
+			double sumConf = 0;
+			int Nconf = 0;
 			Subtrajectory tr = new Subtrajectory(track,2);
+			
 			tr.setID(subidcounter);
 			subidcounter++;
 			tr.add(track.get(0).x, track.get(0).y, 0);
-			
+			sumConf += classConfidence[0];
+			Nconf++;
 			String prevCls = classes[0];
 			int start = track.getRelativeStartTimepoint();
 			tr.setRelativStartTimepoint(start);
@@ -282,19 +285,26 @@ public class TraJClassifier_ implements PlugIn {
 			for(int i = 1; i < classes.length; i++){
 				if(prevCls == classes[i]){
 					tr.add(track.get(i).x, track.get(i).y,0);
+					sumConf += classConfidence[i];
+					Nconf++;
 				}else{;
-					
+					tr.setConfidence(sumConf/Nconf);
 					classifiedTrajectories.add(tr);
 					tr = new Subtrajectory(track,2);
 					tr.setID(subidcounter);
 					subidcounter++;
 					tr.setRelativStartTimepoint(start+i);
 					tr.add(track.get(i).x, track.get(i).y,0);
+					sumConf = classConfidence[i];
+					Nconf = 1;
 					prevCls = classes[i];
 					tr.setType(prevCls);
 				}
 			}
+			tr.setConfidence(sumConf/Nconf);
 			classifiedTrajectories.add(tr);
+			sumConf = 0;
+			Nconf = 0;
 		}
 		rrf.stop();
 		
@@ -345,7 +355,7 @@ public class TraJClassifier_ implements PlugIn {
 
 				Iterator<String> it = classes.iterator();
 				int y = 5;
-				TextRoi.setFont("TimesRoman", 12, Font.PLAIN);
+				TextRoi.setFont("TimesRoman", 7, Font.PLAIN);
 
 				while (it.hasNext()) {
 					String type = it.next();
@@ -488,6 +498,8 @@ public class TraJClassifier_ implements PlugIn {
 					res = cest.evaluate();
 					rt.addValue("Loc. noise_sigma", (res[1]+res[2])/2);
 					
+					rt.addValue("Confidence", t.getConfidence());
+					
 				}
 
 		}
@@ -497,7 +509,8 @@ public class TraJClassifier_ implements PlugIn {
 		 */
 		Iterator<String> rtIt = rtables.keySet().iterator();
 		
-		ResultsTable parents = new TraJResultsTable();
+		ResultsTable parents = new TraJResultsTable(true);
+		
 		for(int i = 0; i < parentTrajectories.size(); i++){
 			parents.incrementCounter();
 			Trajectory t = parentTrajectories.get(i);
