@@ -89,7 +89,7 @@ public class TraJClassifier_Debug {
 	public static void main(String[] args) {
 		
 		TraJClassifier_Debug db = new TraJClassifier_Debug();
-		db.importTracksAndShow();
+		db.showTestScene();
 		
 	
 	}
@@ -190,7 +190,7 @@ public class TraJClassifier_Debug {
 	}
 	
 	public void showTestScene(){
-		CentralRandomNumberGenerator.getInstance().setSeed(9);
+		CentralRandomNumberGenerator.getInstance().setSeed(10);
 		String modelpath="";
 		try {
 			modelpath= ExportResource("/randomForestModel.RData");
@@ -199,9 +199,9 @@ public class TraJClassifier_Debug {
 			e.printStackTrace();
 		}
 		
-		int w = 40;
+		int w = 45;
 		
-		double diffusioncoefficient = 9.02;
+		double diffusioncoefficient = 0.05;
 		double timelag = 1.0/30;
 		double[] driftspeed = {0, 0.27,1,2.4}; // µm/s
 		double angularVelocity = Math.PI/4; //rad/s
@@ -209,11 +209,11 @@ public class TraJClassifier_Debug {
 		int diffusionToNoiseRatio = 1;
 		double sigmaPosNoise = Math.sqrt(2*diffusioncoefficient*timelag)/diffusionToNoiseRatio; 
 		
-		double SNR = 2;
-		double boundedness = 3;
+		double SNR = 2.5;
+		double boundedness = 7;
 		double radius_confined = Math.sqrt(BoundednessFeature.a(w)*diffusioncoefficient*timelag/(4*boundedness));
 		System.out.println("Radius confined" + radius_confined + " µm");
-		double R = 8;
+		double R = 3;
 		double velocity = Math.sqrt(R*4*diffusioncoefficient/(w*timelag));
 		System.out.println("Velocity " + velocity + " µm/s");
 
@@ -237,9 +237,9 @@ public class TraJClassifier_Debug {
 		combinedTrajectory = TrajectoryUtil.concactTrajectorie(trFree, trDirected);
 		
 		ConfinedDiffusionSimulator confSim = new ConfinedDiffusionSimulator(diffusioncoefficient, timelag, radius_confined, 2, numberOfSteps);
-		Trajectory trConfined = confSim.generateTrajectory();
-		trConfined = SimulationUtil.addPositionNoise(trConfined, rsig_1);
-		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trConfined);
+		Trajectory trFree2 = simFree.generateTrajectory();
+		trFree2= SimulationUtil.addPositionNoise(trFree2, rsig_1);
+		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trFree2);
 		
 		Trajectory trDirected2 = TrajectoryUtil.combineTrajectory(simActive.generateTrajectory(), simFree.generateTrajectory());
 		trDirected2 = SimulationUtil.addPositionNoise(trDirected2, rsig_2);
@@ -252,14 +252,28 @@ public class TraJClassifier_Debug {
 		
 	//	Chart c = VisualizationUtils.getTrajectoryChart(combinedTrajectory);
 		//VisualizationUtils.plotChart(c);
+		ExportImportTools eit = new ExportImportTools();
 		
+		ArrayList<Subtrajectory> tracks = TraJClassifier_.getInstance().classifyAndSegment(combinedTrajectory, modelpath, w, 90, 10, 1);
+		eit.exportTrajectoryDataAsCSV(tracks, "/home/thorsten/track_seg.csv");
+		showTracks(tracks);
+		/*
 		RRFClassifierRenjin rrf = new RRFClassifierRenjin(modelpath,timelag);
 		rrf.start();
 		WeightedWindowedClassificationProcess wcp = new WeightedWindowedClassificationProcess();
-		
+		w=60;
 		String[] classes = wcp.windowedClassification(combinedTrajectory, rrf, w,1);
+		double[] conf = wcp.getPositionConfidence();
+		for(int i = 0; i < conf.length; i++){
+			//System.out.println("i: " +(i+1)+ " conf: " + conf[i]);
+		}
+		Mean mean2 = new Mean();
+		System.out.println(" Mean conf: " + mean2.evaluate(conf));
+		//classes=movingMode(classes, 10);
 		//classes = movingMode(classes, w/2);
-		showTrack(combinedTrajectory, classes);
+		//showTrack(combinedTrajectory, classes,0);
+		segmentSubtrajectoriesAndShow(combinedTrajectory, classes, conf,0,10);
+		*/
 	}
 	
 	
@@ -378,7 +392,9 @@ public class TraJClassifier_Debug {
 		return types;
 	}
 	
-	public static void showTrack(Trajectory t, String[] classes){
+	public ArrayList<Trajectory> segmentSubtrajectoriesAndShow(Trajectory t, String[] classes, double[] classConfidence,double confidenceThreshold,int minSegLength){
+		
+		//segmentation
 		if(t.size() != classes.length){
 			throw new IllegalArgumentException("Tracklength and the number of classes have to be equal");
 		}
@@ -391,19 +407,85 @@ public class TraJClassifier_Debug {
 			if(prevCls == classes[i]){
 				sub.add(t.get(i));
 			}else{
+			
 				subtracks.add(sub);
 				cls.add(prevCls);
+				
 				prevCls = classes[i];
 				sub = new Trajectory(t.getDimension());
 				sub.add(t.get(i));
 			}
 		}
+		
 		cls.add(prevCls);
 		subtracks.add(sub);
+		
+		//Confidence filter;
+		int indexCounter = 0;
+		for(int i = 0; i < subtracks.size(); i++){
+			for(int j = 0; j < subtracks.get(i).size(); j++){
+				if(classConfidence[indexCounter]<confidenceThreshold){
+					subtracks.get(i).remove(j);
+					j--;
+				}
+				indexCounter++;
+			}
+		}
+		
+		//Min Segmenth length filter;
+		for(int i = 0; i < subtracks.size(); i++){
+			if(subtracks.get(i).size()<minSegLength){
+				subtracks.remove(i);
+				cls.remove(i);
+				i--;
+				
+			}
+		}
+		showTracks(subtracks,cls);
+		return subtracks;
+		
+	}
+	
+	public static void showTrack(Trajectory t, String[] classes, int minSegLength){
+		if(t.size() != classes.length){
+			throw new IllegalArgumentException("Tracklength and the number of classes have to be equal");
+		}
+		ArrayList<String> cls = new ArrayList<String>();
+		ArrayList<Trajectory> subtracks = new ArrayList<Trajectory>();
+		String prevCls = classes[0];
+		Trajectory sub = new Trajectory(t.getDimension());
+		sub.add(t.get(0));
+		for(int i = 1; i < t.size(); i++){
+			if(prevCls == classes[i]){
+				sub.add(t.get(i));
+			}else{
+				if(sub.size()>minSegLength){
+				subtracks.add(sub);
+				cls.add(prevCls);
+				}
+				
+				prevCls = classes[i];
+				sub = new Trajectory(t.getDimension());
+				sub.add(t.get(i));
+			}
+		}
+		
+		if(sub.size()>minSegLength){
+			cls.add(prevCls);
+			subtracks.add(sub);
+		}
 		showTracks(subtracks, cls);
 	}
 	
-	public static void showTracks(ArrayList<Trajectory> tracks, String[] classes){
+	public static void showTracks(ArrayList<Subtrajectory> tracks){
+		ArrayList<String> cls = new ArrayList<String>();
+		for(int i = 0; i < tracks.size(); i++){
+			cls.add(tracks.get(i).getType());
+		}
+		showTracks(tracks, cls);
+	}
+	
+	public static void showTracks(ArrayList<? extends Trajectory> tracks, String[] classes){
 		ArrayList<String> cls = new ArrayList<String>();
 		for(int i = 0; i < classes.length; i++){
 			cls.add(classes[i]);
@@ -412,7 +494,7 @@ public class TraJClassifier_Debug {
 	}
 	
 	
-	public static void showTracks(ArrayList<Trajectory> tracks, ArrayList<String> classes){
+	public static void showTracks(ArrayList<? extends Trajectory> tracks, ArrayList<String> classes){
 		Color[] colors = new Color[]
 				{
 				    Color.RED, Color.BLUE, Color.YELLOW, Color.GREEN,
@@ -503,21 +585,21 @@ public class TraJClassifier_Debug {
 		}
 
 		String[] medTypes = new String[types.size()];
-		
+
 		for(int i = 0; i < n; i++){
-			medTypes[i] = "NONE";
+			medTypes[i] = types.get(i);
 		}
 		for(int i = types.size()- n; i < types.size(); i++){
-			medTypes[i] = "NONE";
+			medTypes[i] = types.get(i);
 		}
-		
+
 		for(int i = 0; i < (types.size()-windowsize+1);i++){
 			List<String> sub = types.subList(i, i+windowsize-1);
 			double[] values = new double[sub.size()];
 			for(int j = 0; j < sub.size(); j++){
 				values[j] = mapTypeToInt.get(sub.get(j));
 			}
-			
+
 			medTypes[i + n] = mapIntToType.get(((int)StatUtils.mode(values)[0]));
 		}
 		return medTypes;	

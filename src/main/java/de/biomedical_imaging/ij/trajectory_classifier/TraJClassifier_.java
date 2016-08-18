@@ -105,6 +105,9 @@ public class TraJClassifier_ implements PlugIn {
 	}
 	
 	public static TraJClassifier_ getInstance(){
+		if(instance == null){
+			instance = new TraJClassifier_();
+		}
 		return instance;
 	}
 	
@@ -169,12 +172,13 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
 			gd.addSlider("Windowsize", 1, 1000, windowSizeClassification);
 			gd.addSlider("Min. segment length",30,1000,windowSizeClassification);
-			gd.addNumericField("Resample rate", 1, 0);
-			gd.addNumericField("Pixelsize (µm)*", pixelsize, 4);
+			gd.addNumericField("Resample rate*", 1, 0);
+			gd.addNumericField("Pixelsize (µm)**", pixelsize, 4);
 			gd.addNumericField("Framerate", 1/timelag, 0);
 			gd.addCheckbox("Show IDs", showID);
 			gd.addCheckbox("Show overview classes", showOverviewClasses);
-			gd.addMessage("* Set to zero if the imported data is already correctly scaled.");
+			gd.addMessage("* The ratio of window size / resample rate have to be at least 30.");
+			gd.addMessage("** Set to zero if the imported data is already correctly scaled.");
 			gd.addHelp("http://forum.imagej.net");
 			gd.addDialogListener(new DialogListener() {
 				
@@ -190,9 +194,6 @@ public class TraJClassifier_ implements PlugIn {
 					showOverviewClasses = gd.getNextBoolean();
 					
 					boolean valid = windowSizeClassification/resampleRate>=30;
-					if(!valid){
-						IJ.showMessage("The ratio of window size / resample rate should be at least 30.");
-					}
 					return valid;
 				}
 			});
@@ -231,12 +232,10 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Classification, Segmentation & Visualization
 		 */
-		RRFClassifierRenjin rrf = new RRFClassifierRenjin(modelpath,resampleRate*timelag);
-		rrf.start();
-		WeightedWindowedClassificationProcess wcp = new WeightedWindowedClassificationProcess();
 		
 		
-		int j = 0;
+		
+		
 
 		HashMap<String, Color> mapTypeToColor = new HashMap<String, Color>();
 		mapTypeToColor.put("DIRECTED/ACTIVE", Color.MAGENTA);
@@ -257,71 +256,9 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * Classification and segmentation
 		 */
-		classifiedTrajectories = new ArrayList<Subtrajectory>();
-		int subidcounter = 1;
-		for (Trajectory track : parentTrajectories) {
-			j++;
-			IJ.showProgress(j, parentTrajectories.size());
-			Trajectory mTrack = track;
-	
-			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification,resampleRate);
-			double[] classConfidence = wcp.getPositionConfidence();
-			//Moving mode
-			classes = movingMode(classes, 10);
-			double sumConf = 0;
-			int Nconf = 0;
-			Subtrajectory tr = new Subtrajectory(track,2);
-			
-			tr.setID(subidcounter);
-			subidcounter++;
-			tr.add(track.get(0).x, track.get(0).y, 0);
-			sumConf += classConfidence[0];
-			Nconf++;
-			String prevCls = classes[0];
-			int start = track.getRelativeStartTimepoint();
-			tr.setRelativStartTimepoint(start);
-			tr.setType(prevCls);
-			
-			for(int i = 1; i < classes.length; i++){
-				if(prevCls == classes[i]){
-					tr.add(track.get(i).x, track.get(i).y,0);
-					sumConf += classConfidence[i];
-					Nconf++;
-				}else{;
-					tr.setConfidence(sumConf/Nconf);
-					classifiedTrajectories.add(tr);
-					tr = new Subtrajectory(track,2);
-					tr.setID(subidcounter);
-					subidcounter++;
-					tr.setRelativStartTimepoint(start+i);
-					tr.add(track.get(i).x, track.get(i).y,0);
-					sumConf = classConfidence[i];
-					Nconf = 1;
-					prevCls = classes[i];
-					tr.setType(prevCls);
-				}
-			}
-			tr.setConfidence(sumConf/Nconf);
-			classifiedTrajectories.add(tr);
-			sumConf = 0;
-			Nconf = 0;
-		}
-		rrf.stop();
 		
-		/*
-		 * FILTER
-		 */
+		classifiedTrajectories = classifyAndSegment(parentTrajectories, modelpath, windowSizeClassification, minSegmentLength, 10, resampleRate);
 		
-		
-		
-		//Remove segments smaller then the minimum segment length
-		for(int i = 0; i < classifiedTrajectories.size(); i++){
-			if(classifiedTrajectories.get(i).size()<minSegmentLength){
-				classifiedTrajectories.remove(i);
-				i--;
-			}
-		}
-	
 		
 		/*
 		 * Visualization 
@@ -382,7 +319,7 @@ public class TraJClassifier_ implements PlugIn {
 		rtables.put("NORM. DIFFUSION", new TraJResultsTable());
 		rtables.put("SUBDIFFUSION", new TraJResultsTable());
 		rtables.put("CONFINED", new TraJResultsTable());
-
+		double sumConf = 0;
 		for (int i = 0; i < classifiedTrajectories.size(); i++) {
 				IJ.showProgress(i, classifiedTrajectories.size());
 				Subtrajectory t = classifiedTrajectories.get(i);
@@ -424,7 +361,7 @@ public class TraJClassifier_ implements PlugIn {
 					ConfinedDiffusionParametersFeature confp = new ConfinedDiffusionParametersFeature(t,timelag,dcEst);
 					double[] p = confp.evaluate();
 					dc = p[1];
-					rt.addValue("CONF. SIZE", p[0]);
+					rt.addValue("CONF. RADIUS", Math.sqrt(p[0]));
 					rt.addValue("A (CONF SHAPE)", p[2]);
 					rt.addValue("B (CONF SHAPE)", p[3]);
 					rt.addValue("D", formatter.format(p[1]));
@@ -498,7 +435,9 @@ public class TraJClassifier_ implements PlugIn {
 					res = cest.evaluate();
 					rt.addValue("Loc. noise_sigma", (res[1]+res[2])/2);
 					
-					rt.addValue("Confidence", t.getConfidence());
+					double conf = t.getConfidence();
+					sumConf+=conf;
+					rt.addValue("Confidence", conf);
 					
 				}
 
@@ -558,6 +497,11 @@ public class TraJClassifier_ implements PlugIn {
 			parents.addValue("#POS_CONF", confPosCount);
 			parents.addValue("#SEG_DIRECTED", directSegCount);
 			parents.addValue("#POS_DIRECTED", directedPosCount);
+			
+			ResultsTable overall = new ResultsTable();
+			overall.incrementCounter();
+			overall.addValue("Mean confindence", sumConf/classifiedTrajectories.size());
+			overall.show("Overall Statistics");
 		}
 		
 		
@@ -572,7 +516,83 @@ public class TraJClassifier_ implements PlugIn {
 	
 	}
 	
+	public ArrayList<Subtrajectory> classifyAndSegment(Trajectory trackToClassify, String modelpath, int windowSizeClassification, int minSegmentLength, int modeFilterLength, int resampleRate){
+		ArrayList<Trajectory> help = new ArrayList<Trajectory>();
+		help.add(trackToClassify);
+		return classifyAndSegment(help, modelpath, windowSizeClassification, minSegmentLength, modeFilterLength, resampleRate);
+	}
 	
+	public ArrayList<Subtrajectory> classifyAndSegment(ArrayList<Trajectory> tracksToClassify, String modelpath, int windowSizeClassification, int minSegmentLength, int modeFilterLength, int resampleRate){
+		ArrayList<Subtrajectory> classified = new ArrayList<Subtrajectory>();
+		int j = 0;
+		RRFClassifierRenjin rrf = new RRFClassifierRenjin(modelpath,resampleRate*timelag);
+		rrf.start();
+		WeightedWindowedClassificationProcess wcp = new WeightedWindowedClassificationProcess();
+		int subidcounter = 1;
+		for (Trajectory track : tracksToClassify) {
+			j++;
+			IJ.showProgress(j, tracksToClassify.size());
+			Trajectory mTrack = track;
+	
+			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification,resampleRate);
+			double[] classConfidence = wcp.getPositionConfidence();
+			//Moving mode
+			classes = movingMode(classes, modeFilterLength);
+			double sumConf = 0;
+			int Nconf = 0;
+			Subtrajectory tr = new Subtrajectory(track,2);
+			
+			tr.setID(subidcounter);
+			subidcounter++;
+			tr.add(track.get(0).x, track.get(0).y, 0);
+			sumConf += classConfidence[0];
+			Nconf++;
+			String prevCls = classes[0];
+			int start = track.getRelativeStartTimepoint();
+			tr.setRelativStartTimepoint(start);
+			tr.setType(prevCls);
+			
+			for(int i = 1; i < classes.length; i++){
+				if(prevCls == classes[i]){
+					tr.add(track.get(i).x, track.get(i).y,0);
+					sumConf += classConfidence[i];
+					Nconf++;
+				}else{;
+					tr.setConfidence(sumConf/Nconf);
+					classified.add(tr);
+					tr = new Subtrajectory(track,2);
+					tr.setID(subidcounter);
+					subidcounter++;
+					tr.setRelativStartTimepoint(start+i);
+					tr.add(track.get(i).x, track.get(i).y,0);
+					sumConf = classConfidence[i];
+					Nconf = 1;
+					prevCls = classes[i];
+					tr.setType(prevCls);
+				}
+			}
+			tr.setConfidence(sumConf/Nconf);
+			classified.add(tr);
+			sumConf = 0;
+			Nconf = 0;
+		}
+		rrf.stop();
+		
+		/*
+		 * FILTER
+		 */
+		
+		
+		
+		//Remove segments smaller then the minimum segment length
+		for(int i = 0; i < classified.size(); i++){
+			if(classified.get(i).size()<minSegmentLength){
+				classified.remove(i);
+				i--;
+			}
+		}
+		return classified;
+	}
 	
 	public double getTimelag(){
 		return timelag;
