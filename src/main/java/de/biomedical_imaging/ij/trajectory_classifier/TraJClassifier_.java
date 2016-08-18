@@ -159,6 +159,7 @@ public class TraJClassifier_ implements PlugIn {
 		
 		if(!arg.contains("NOGUI")){
 			//Load previous settings
+			String version = getClass().getPackage().getImplementationVersion();
 			minTrackLength = Prefs.get("trajclass.minTrackLength", 160);
 			windowSizeClassification = (int) Prefs.get("trajclass.windowSize", 60);
 			pixelsize = Prefs.get("trajclass.pixelsize", 0.166);
@@ -167,7 +168,7 @@ public class TraJClassifier_ implements PlugIn {
 			showOverviewClasses = Prefs.getBoolean("trajclass.showOverviewClasses", true);
 			
 			//Show GUI
-			GenericDialog gd = new GenericDialog("Parameters Classification");
+			GenericDialog gd = new GenericDialog("TraJectory Classification ("+version+")");
 		
 			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
 			gd.addSlider("Windowsize", 1, 1000, windowSizeClassification);

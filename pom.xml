@@ -119,7 +119,20 @@ http://maven.apache.org/xsd/maven-4.0.0.xsd">
 				         <enableAssertions>false</enableAssertions>
 				    </configuration>
 	            </plugin>
+	            <plugin>
+			    <groupId>org.apache.maven.plugins</groupId>
+			    <artifactId>maven-jar-plugin</artifactId>
+			    <configuration>
+			        <archive>                   
+			            <manifest>
+			                <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+			                <addDefaultSpecificationEntries>true</addDefaultSpecificationEntries>
+			            </manifest>
+			        </archive>
+			    </configuration>
+			</plugin>
 	        </plugins>
+	        
 	    </pluginManagement>
 		<plugins>
 	        <plugin>
