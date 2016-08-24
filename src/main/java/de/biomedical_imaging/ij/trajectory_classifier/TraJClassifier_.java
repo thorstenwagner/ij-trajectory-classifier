@@ -189,7 +189,7 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addCheckbox("Remove global drift", false);
 			gd.addMessage("* The ratio of window size / resample rate have to be at least 30.");
 			gd.addMessage("** Set to zero if the imported data is already correctly scaled.");
-			gd.addHelp("http://forum.imagej.net");
+			gd.addHelp("http://imagej.net/TraJClassifier");
 			gd.addDialogListener(new DialogListener() {
 				
 				@Override
@@ -569,7 +569,7 @@ public class TraJClassifier_ implements PlugIn {
 		overall.addValue("Min. segment length", minSegmentLength);
 		overall.addValue("Resamplerate", resampleRate);
 		overall.addValue("Pixelsize", pixelsize);
-		overall.addValue("Timelag", timelag);
+		overall.addValue("Framerate", 1/timelag);
 		overall.addValue("Reduced conf. model", Boolean.toString(useReducedModelConfinedMotion));
 		overall.addValue("Remove global drift", Boolean.toString(removeGlobalDrift));
 		overall.show("Settings & Miscellaneous");
