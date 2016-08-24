@@ -241,7 +241,9 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		catch  (EvalException e){
 			e.printStackTrace();
 			IJ.log("BAD!");
+			/*
 			try {
+				
 				ExportImportTools eit = new ExportImportTools();
 				ArrayList<Trajectory> help = new ArrayList<Trajectory>();
 				help.add(tracks.get(42));
@@ -249,10 +251,12 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 				
 				engine.eval("save(fprob,file=\"/home/thorsten/bad_data.RData\")");
 				engine.eval("save(fprob,file=\"/home/thorsten/bad_fprob.RData\")");
+				
 			} catch (ScriptException e1) {
 				// TODO Auto-generated catch block
 				e1.printStackTrace();
 			}
+			*/
 		}
 		
 		return result;
