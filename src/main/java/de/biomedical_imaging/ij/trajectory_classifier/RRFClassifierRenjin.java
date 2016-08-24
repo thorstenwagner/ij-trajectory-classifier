@@ -36,6 +36,7 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
+import org.renjin.eval.EvalException;
 import org.renjin.parser.ParseException;
 import org.renjin.sexp.DoubleVector;
 import org.renjin.sexp.StringVector;
@@ -214,7 +215,7 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 
 			engine.eval("features.predict <- predict(model,data,type=\"prob\")");
 			engine.eval("fprob<-features.predict");
-		
+			
 			if(tracks.size()>1){
 				engine.eval("probs <- as.vector(apply(fprob[1:nrow(fprob),],1,max))");
 				engine.eval("indexmax <- as.vector(apply(fprob[1:nrow(fprob),],1,which.max))");
@@ -236,6 +237,22 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		catch (ScriptException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		}
+		catch  (EvalException e){
+			e.printStackTrace();
+			IJ.log("BAD!");
+			try {
+				ExportImportTools eit = new ExportImportTools();
+				ArrayList<Trajectory> help = new ArrayList<Trajectory>();
+				help.add(tracks.get(42));
+				eit.exportTrajectoryDataAsCSV(help, "/home/thorsten/bad_track.csv");
+				
+				engine.eval("save(fprob,file=\"/home/thorsten/bad_data.RData\")");
+				engine.eval("save(fprob,file=\"/home/thorsten/bad_fprob.RData\")");
+			} catch (ScriptException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 		}
 		
 		return result;

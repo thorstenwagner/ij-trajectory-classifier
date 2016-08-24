@@ -51,8 +51,8 @@ public class RRFClassifierRenjinTest {
 		int simtracklength = 500;
 
 		AbstractSimulator sim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, simtracklength);
-		
 		String res = c.classify(sim.generateTrajectory());
+		
 
 		assertEquals("NORM. DIFFUSION", res);
 	}

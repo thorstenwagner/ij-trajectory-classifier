@@ -37,7 +37,7 @@ import de.biomedical_imaging.traJ.simulation.SimulationUtil;
 
 public class PerformanceDataGenerator {
 
-	public static double diffusioncoefficient = 9.02 * Math.pow(10, -2);
+	public static double diffusioncoefficient = 9.02;
 	public static String modelpath = "";
 
 	public static void main(String[] args) {
@@ -48,10 +48,18 @@ public class PerformanceDataGenerator {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		// generateNormalDiffData();
-		//generateActiveData();
+		System.out.println("Start!");
+		generateNormalDiffData();
+		System.out.println("Finish normal!");
+		generateActiveData();
+		System.out.println("Finish active!");
+
 		generateConfinedData();
+		System.out.println("Finish confined!");
+
 		generateSubdiffusionData();
+		System.out.println("Finish subdiffusion!");
+
 	}
 
 	public static void generateActiveData() {
@@ -59,7 +67,7 @@ public class PerformanceDataGenerator {
 		int tracklength = 500;
 		double dt = 1.0 / 30;
 		double r = 1;
-		double[] SNRs = { 1, 2, 3, 4, 5 };
+		double[] SNRs = { 1, 2, 5 };
 		double angleVelocity = Math.PI / 4;
 		int N = 50;
 		int w = 30;
@@ -86,7 +94,6 @@ public class PerformanceDataGenerator {
 					double sigmaPosNoise = Math.sqrt(diffusioncoefficient * dt
 							+ drift * drift * dt * dt)
 							/ SNR;
-					// System.out.println("sigma " + sigmaPosNoise);
 					AbstractSimulator sim1 = new ActiveTransportSimulator(
 							drift, angleVelocity, dt, 2, tracklength);
 					AbstractSimulator sim2 = new FreeDiffusionSimulator(
@@ -99,7 +106,6 @@ public class PerformanceDataGenerator {
 				}
 				double meancorrectness = m.evaluate(val);
 				double corrsd = sd.evaluate(val);
-				System.out.println("r: " + r + " Meancorr: " + meancorrectness);
 				par[j] = r;
 				cor[j] = meancorrectness;
 				sdcor[j] = corrsd;
@@ -118,7 +124,7 @@ public class PerformanceDataGenerator {
 		CentralRandomNumberGenerator.getInstance().setSeed(10);
 		int tracklength = 500;
 		double dt = 1.0 / 30;
-		double[] alphas = { 0.9, 0.8, 0.7, 0.5 };
+		double[] alphas = { 0.3, 0.5, 0.7};
 		double SNR = 5;
 		int N = 80;
 		AbstractClassifier rrf = new RRFClassifierRenjin(modelpath, dt);
@@ -133,35 +139,24 @@ public class PerformanceDataGenerator {
 		StandardDeviation sd = new StandardDeviation();
 
 		for (double alpha : alphas) {
-			System.out.println("Start alpha: " + alpha);
 			j = 0;
 			AbstractSimulator sim1 = new AnomalousDiffusionWMSimulation(
 					diffusioncoefficient, dt, 2, 2000, alpha);
 			for (int w = 15; w < 100; w += 5) {
-				System.out.println("Start w: " + w);
 				double[] val = new double[N];
 				double sigmaPosNoise = Math.sqrt(diffusioncoefficient * dt)
 						/ SNR;
 
-				// AbstractSimulator sim1 = new
-				// FreeDiffusionSimulator(diffusioncoefficient, 1.0/30, 2,
-				// 2000);
 				for (int i = 0; i < N; i++) {
-					// System.out.println(1.0*i/(N-1)*100);
 					Trajectory t = sim1.generateTrajectory();
 					t = t.subList(0, tracklength);
 					t = SimulationUtil.addPositionNoise(t, sigmaPosNoise);
 					String[] res = wcp.windowedClassification(t, rrf, w,1);
-					if (i == 5) {
-						System.out.println("res " + res[250]);
-					}
 					val[i] = getCorrectNess(res, "SUBDIFFUSION");
 				}
 				double meancorrectness = m.evaluate(val);
 				double corrsd = sd.evaluate(val);
-				System.out.println("w: " + w * 2 + "Alpha: " + alpha + " SNR: "
-						+ SNR + " MEAN: " + meancorrectness + " SD: " + corrsd
-						/ Math.sqrt(N));
+
 				par[j] = 2 * w;
 				cor[j] = meancorrectness;
 				sdcor[j] = corrsd;
@@ -181,7 +176,7 @@ public class PerformanceDataGenerator {
 		int tracklength = 500;
 		double dt = 1.0 / 30;
 		double B = 0.5;
-		double[] SNRs = {2, 3, 4, 5 };
+		double[] SNRs = {1, 2, 5 };
 
 		int N = 200;
 		int w = 30;
@@ -216,8 +211,7 @@ public class PerformanceDataGenerator {
 				}
 				double meancorrectness = m.evaluate(val);
 				double corrsd = sd.evaluate(val);
-				System.out.println("B: " + B + " R: " + radius + " MEAN: "
-						+ meancorrectness + " SD: " + corrsd);
+
 				par[j] = B;
 				cor[j] = meancorrectness;
 				sdcor[j] = corrsd;
@@ -236,7 +230,7 @@ public class PerformanceDataGenerator {
 		CentralRandomNumberGenerator.getInstance().setSeed(10);
 		int tracklength = 500;
 		double dt = 1.0 / 30;
-		double[] SNRs = { 1, 2, 3, 4, 5 };
+		double[] SNRs = { 1, 2,  5 };
 		int N = 200;
 
 		AbstractClassifier rrf = new RRFClassifierRenjin(modelpath, dt);
@@ -249,7 +243,6 @@ public class PerformanceDataGenerator {
 		Mean m = new Mean();
 		StandardDeviation sd = new StandardDeviation();
 		for (double SNR : SNRs) {
-			System.out.println("SNR: " + SNR);
 			int w = 15;
 			int j = 0;
 			while (w <= 90) {
@@ -268,8 +261,7 @@ public class PerformanceDataGenerator {
 				}
 				double meancorrectness = m.evaluate(val);
 				double corrsd = sd.evaluate(val);
-				System.out.println("w: " + w + " Meancorr: " + meancorrectness
-						+ "SEM: " + corrsd / Math.sqrt(N));
+
 				par[j] = 2 * w;
 				cor[j] = meancorrectness;
 				sdcor[j] = corrsd;

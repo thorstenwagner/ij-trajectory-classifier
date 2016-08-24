@@ -49,6 +49,8 @@ import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.AbstractDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.CovarianceDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
+import de.biomedical_imaging.traJ.drift.StaticDriftCalculator;
+import de.biomedical_imaging.traJ.drift.StaticDriftCorrector;
 import de.biomedical_imaging.traJ.features.AbstractTrajectoryFeature;
 import de.biomedical_imaging.traJ.features.ActiveTransportParametersFeature;
 import de.biomedical_imaging.traJ.features.Asymmetry3Feature;
@@ -87,6 +89,7 @@ public class TraJClassifier_ implements PlugIn {
 	private int resampleRate;
 	private boolean showID;
 	private boolean showOverviewClasses;
+	private boolean removeGlobalDrift;
 	private ArrayList<Subtrajectory> classifiedTrajectories;
 	private ArrayList<Trajectory> tracksToClassify;
 	//private ArrayList<Trajectory> tracks 
@@ -162,22 +165,26 @@ public class TraJClassifier_ implements PlugIn {
 			String version = getClass().getPackage().getImplementationVersion();
 			minTrackLength = Prefs.get("trajclass.minTrackLength", 160);
 			windowSizeClassification = (int) Prefs.get("trajclass.windowSize", 60);
+			minSegmentLength = (int) Prefs.get("trajclass.minSegmentLength", 60);
+			resampleRate = (int) Prefs.get("trajclass.ResampleRate", 1);
 			pixelsize = Prefs.get("trajclass.pixelsize", 0.166);
 			timelag = 1.0/Prefs.get("trajclass.framerate",30);
 			showID = Prefs.getBoolean("trajclass.showID", true);
 			showOverviewClasses = Prefs.getBoolean("trajclass.showOverviewClasses", true);
+			removeGlobalDrift = Prefs.getBoolean("trajclass.removeGlobalDrift", false);
 			
 			//Show GUI
 			GenericDialog gd = new GenericDialog("TraJectory Classification ("+version+")");
 		
 			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
-			gd.addSlider("Windowsize", 1, 1000, windowSizeClassification);
-			gd.addSlider("Min. segment length",30,1000,windowSizeClassification);
-			gd.addNumericField("Resample rate*", 1, 0);
+			gd.addSlider("Windowsize (positions)", 30, 1000, windowSizeClassification);
+			gd.addSlider("Min. segment length",30,1000,minSegmentLength);
+			gd.addNumericField("Resample rate*", resampleRate, 0);
 			gd.addNumericField("Pixelsize (µm)**", pixelsize, 4);
-			gd.addNumericField("Framerate", 1/timelag, 0);
+			gd.addNumericField("Framerate (FPS)", 1/timelag, 0);
 			gd.addCheckbox("Show IDs", showID);
 			gd.addCheckbox("Show overview classes", showOverviewClasses);
+			gd.addCheckbox("Remove global drift", false);
 			gd.addMessage("* The ratio of window size / resample rate have to be at least 30.");
 			gd.addMessage("** Set to zero if the imported data is already correctly scaled.");
 			gd.addHelp("http://forum.imagej.net");
@@ -193,7 +200,7 @@ public class TraJClassifier_ implements PlugIn {
 					timelag = 1/gd.getNextNumber();
 					showID = gd.getNextBoolean();
 					showOverviewClasses = gd.getNextBoolean();
-					
+					removeGlobalDrift = gd.getNextBoolean();
 					boolean valid = windowSizeClassification/resampleRate>=30;
 					return valid;
 				}
@@ -210,14 +217,17 @@ public class TraJClassifier_ implements PlugIn {
 			timelag = 1/gd.getNextNumber();
 			showID = gd.getNextBoolean();
 			showOverviewClasses = gd.getNextBoolean();
-			
+			removeGlobalDrift = gd.getNextBoolean();
 			// Save settings
 			Prefs.set("trajclass.minTrackLength", minTrackLength);
 			Prefs.set("trajclass.windowSize", windowSizeClassification*2);
+			Prefs.set("trajclass.minSegmentLength", minSegmentLength);
+			Prefs.set("trajclass.ResampleRate", resampleRate);
 			Prefs.set("trajclass.pixelsize", pixelsize);
 			Prefs.set("trajclass.framerate", 1/timelag);
 			Prefs.set("trajclass.showID", showID);
 			Prefs.set("trajclass.showOverviewClasses", showOverviewClasses);
+			Prefs.set("trajclass.removeGlobalDrift", removeGlobalDrift);
 		}
 
 		
@@ -253,7 +263,17 @@ public class TraJClassifier_ implements PlugIn {
 				parentTrajectories.add(track);
 			}
 		}
-		
+
+		/*
+		 * Remove drift
+		 */
+		StaticDriftCalculator<Trajectory> dcalc = new StaticDriftCalculator<Trajectory>();
+		if(removeGlobalDrift){
+			double[] drft = dcalc.calculateDrift(parentTrajectories);
+			StaticDriftCorrector dcorr = new StaticDriftCorrector(drft);
+			parentTrajectories = dcorr.removeDrift(parentTrajectories);
+		}
+ 		
 		/*
 		 * Classification and segmentation
 		 */
@@ -325,7 +345,11 @@ public class TraJClassifier_ implements PlugIn {
 				IJ.showProgress(i, classifiedTrajectories.size());
 				Subtrajectory t = classifiedTrajectories.get(i);
 				TraJResultsTable rt = rtables.get(t.getType());
-				
+				if(rt==null){
+					IJ.log("Type: " + t.getType());
+					IJ.log(t.toString());
+					
+				}
 				rt.incrementCounter();
 				rt.addValue("PARENT-ID", t.getParent().getID());
 				rt.addValue("ID", t.getID());
@@ -339,6 +363,8 @@ public class TraJClassifier_ implements PlugIn {
 				DecimalFormatSymbols otherSymbols = new DecimalFormatSymbols(Locale.ENGLISH);
 				NumberFormat formatter = new DecimalFormat("0.###E0",otherSymbols);
 				double[] res;
+				double goodness=0;
+				double alphaGoodness=0;
 				switch (t.getType()) {
 				case "DIRECTED/ACTIVE":
 					
@@ -347,32 +373,39 @@ public class TraJClassifier_ implements PlugIn {
 					//dcEstim = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,t.size()-1);
 					//dc = dcEstim.evaluate()[0];
 					res = apf.evaluate();
-					rt.addValue("D", formatter.format(res[0]));
-					rt.addValue("Velocity_FIT", res[1]);
-					
+					rt.addValue("(FIT) D", formatter.format(res[0]));
+					rt.addValue("(FIT) Velocity", res[1]);
+					goodness = res[2];
 					break;
 				case "NORM. DIFFUSION":
 					
 					dcEstim = new RegressionDiffusionCoefficientEstimator(t, 1/timelag, 1, t.size()/3);
-					dc = dcEstim.evaluate()[0];
-					rt.addValue("D", formatter.format(dc));
+					res = dcEstim.evaluate();
+					dc = res[0];
+					rt.addValue("(FIT) D", formatter.format(dc));
+					goodness = res[4];
+					
 					break;
 				case "CONFINED":
 					AbstractDiffusionCoefficientEstimator dcEst = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,3);
 					ConfinedDiffusionParametersFeature confp = new ConfinedDiffusionParametersFeature(t,timelag,dcEst);
 					double[] p = confp.evaluate();
 					dc = p[1];
-					rt.addValue("CONF. RADIUS", Math.sqrt(p[0]));
-					rt.addValue("A (CONF SHAPE)", p[2]);
-					rt.addValue("B (CONF SHAPE)", p[3]);
-					rt.addValue("D", formatter.format(p[1]));
+					rt.addValue("(FIT) CONF. RADIUS", Math.sqrt(p[0]));
+					rt.addValue("(FIT) A [CONF. SHAPE]", p[2]);
+					rt.addValue("(FIT) B (CONF SHAPE)", p[3]);
+					rt.addValue("(FIT) D", formatter.format(p[1]));
+					goodness = p[4];
+	
 					break;
 				case "SUBDIFFUSION":
 					PowerLawFeature pwf = new PowerLawFeature(t, 1/timelag,1, t.size()/3);
 					res = pwf.evaluate();
 					dc = res[1];
 					
-					rt.addValue("D", formatter.format(dc));
+					rt.addValue("(FIT) D", formatter.format(dc));
+		
+					goodness = res[2];
 					break;
 				default:
 					break;
@@ -381,7 +414,7 @@ public class TraJClassifier_ implements PlugIn {
 				AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1/timelag,1, t.size()/3);
 				res = pwf.evaluate();
 				double alpha = res[0];
-				
+				alphaGoodness = res[2];
 				
 				
 				AbstractTrajectoryFeature f = new CenterOfGravityFeature(t);
@@ -418,7 +451,7 @@ public class TraJClassifier_ implements PlugIn {
 				//	AbstractTrajectoryFeature pwf = new PowerLawFeature(t, 1, t.size()/3);
 				//	res = pwf.evaluate();
 				//	v = res[0];
-					rt.addValue("ALPHA", alpha);
+					rt.addValue("(FIT) ALPHA", alpha);
 					
 					GaussianityFeauture gauss = new GaussianityFeauture(t, 1);
 					v = gauss.evaluate()[0];
@@ -435,7 +468,8 @@ public class TraJClassifier_ implements PlugIn {
 					CovarianceDiffusionCoefficientEstimator cest = new CovarianceDiffusionCoefficientEstimator(t, 1/timelag);
 					res = cest.evaluate();
 					rt.addValue("Loc. noise_sigma", (res[1]+res[2])/2);
-					
+					rt.addValue("Fit Goodness", goodness);
+					rt.addValue("Alpha Fit Goodness", alphaGoodness);
 					double conf = t.getConfidence();
 					sumConf+=conf;
 					rt.addValue("Confidence", conf);
@@ -498,12 +532,16 @@ public class TraJClassifier_ implements PlugIn {
 			parents.addValue("#POS_CONF", confPosCount);
 			parents.addValue("#SEG_DIRECTED", directSegCount);
 			parents.addValue("#POS_DIRECTED", directedPosCount);
-			
-			ResultsTable overall = new ResultsTable();
-			overall.incrementCounter();
-			overall.addValue("Mean confindence", sumConf/classifiedTrajectories.size());
-			overall.show("Overall Statistics");
 		}
+		
+		
+		double[] drift = dcalc.calculateDrift(parentTrajectories);
+		ResultsTable overall = new ResultsTable();
+		overall.incrementCounter();
+		overall.addValue("Mean confindence", sumConf/classifiedTrajectories.size());
+		overall.addValue("Drift x", drift[0]);
+		overall.addValue("Drift y", drift[1]);
+		overall.show("Overall Statistics");
 		
 		
 		// show tables

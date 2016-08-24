@@ -41,7 +41,7 @@ public class WeightedWindowedClassificationProcess {
 	 * @param t Trajectory to be classified
 	 * @param c Classifier
 	 * @param n Determines the window size w = 2*n + 1
-	 * @param rate Resampling rate
+	 * @param rate Resampling rate (1=no resampling)
 	 * @return
 	 */
 	public String[] windowedClassification(Trajectory t, AbstractClassifier c, int n, int rate){
