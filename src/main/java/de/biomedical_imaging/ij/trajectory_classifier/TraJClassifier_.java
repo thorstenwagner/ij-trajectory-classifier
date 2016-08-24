@@ -565,6 +565,7 @@ public class TraJClassifier_ implements PlugIn {
 		overall.addValue("Mean confindence", sumConf/classifiedTrajectories.size());
 		overall.addValue("Drift x", drift[0]);
 		overall.addValue("Drift y", drift[1]);
+		overall.addValue("Min. track length", minTrackLength);
 		overall.addValue("Window size", windowSizeClassification*2);
 		overall.addValue("Min. segment length", minSegmentLength);
 		overall.addValue("Resamplerate", resampleRate);
