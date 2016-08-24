@@ -80,6 +80,7 @@ import de.biomedical_imaging.traJ.simulation.AbstractSimulator;
 import de.biomedical_imaging.traJ.simulation.ActiveTransportSimulator;
 import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionWMSimulation;
 import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
+import de.biomedical_imaging.traJ.simulation.CombinedSimulator;
 import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.FreeDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.SimulationUtil;
@@ -89,9 +90,47 @@ public class TraJClassifier_Debug {
 	public static void main(String[] args) {
 		
 		TraJClassifier_Debug db = new TraJClassifier_Debug();
-		db.showTestScene();
+		db.analyseConfidence();
 		
 	
+	}
+	
+	public void analyseConfidence(){
+		CentralRandomNumberGenerator.getInstance().setSeed(10);
+		
+		String modelpath="";
+		try {
+			modelpath= ExportResource("/randomForestModel.RData");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		double diffusioncoefficient = 1;
+		double timelag = 1;
+		int dimension = 2;
+		int N = 100;
+		int Nsteps = 800;
+		double boundedness = 4;
+		double R = 60;
+		double drift = Math.sqrt(R*4*diffusioncoefficient/90);
+		FreeDiffusionSimulator freeSim = new FreeDiffusionSimulator(diffusioncoefficient, timelag, dimension, Nsteps);
+		ActiveTransportSimulator activeSim = new ActiveTransportSimulator(drift, 0, timelag, dimension, Nsteps);
+		CombinedSimulator directedSim = new CombinedSimulator(freeSim, activeSim);
+		AnomalousDiffusionWMSimulation anomSim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, dimension, 2000, 0.3);
+		Trajectory th = anomSim.generateTrajectory().subList(0, Nsteps);
+		Trajectory t = TrajectoryUtil.concactTrajectorie(directedSim.generateTrajectory(), th);
+		RRFClassifierRenjin ren = new RRFClassifierRenjin(modelpath, timelag);
+		ren.start();
+		WeightedWindowedClassificationProcess wwcp = new WeightedWindowedClassificationProcess();
+		String[] classes = wwcp.windowedClassification(t, ren, 45, 1);
+		ren.stop();
+		VisualizationUtils.plotChart(VisualizationUtils.getTrajectoryChart(t));
+		double[] conf = wwcp.getPositionConfidence();
+		for(int i = 0; i < conf.length; i++){
+			System.out.println((i+1) + "\t" + conf[i] + "\t" + classes[i]);
+		}
+		
 	}
 	
 	public void testSubsampling(){
@@ -190,7 +229,7 @@ public class TraJClassifier_Debug {
 	}
 	
 	public void showTestScene(){
-		CentralRandomNumberGenerator.getInstance().setSeed(10);
+		CentralRandomNumberGenerator.getInstance().setSeed(2);
 		String modelpath="";
 		try {
 			modelpath= ExportResource("/randomForestModel.RData");
@@ -210,10 +249,10 @@ public class TraJClassifier_Debug {
 		double sigmaPosNoise = Math.sqrt(2*diffusioncoefficient*timelag)/diffusionToNoiseRatio; 
 		
 		double SNR = 2.5;
-		double boundedness = 7;
+		double boundedness = 5;
 		double radius_confined = Math.sqrt(BoundednessFeature.a(w)*diffusioncoefficient*timelag/(4*boundedness));
 		System.out.println("Radius confined" + radius_confined + " µm");
-		double R = 3;
+		double R = 5;
 		double velocity = Math.sqrt(R*4*diffusioncoefficient/(w*timelag));
 		System.out.println("Velocity " + velocity + " µm/s");
 
@@ -222,41 +261,63 @@ public class TraJClassifier_Debug {
 		double rsig_2 = Math.sqrt(Dc*timelag+velocity*velocity*timelag*timelag)/SNR;
 		System.out.println("Sigma 1: " + rsig_1 + " Sigma 2: " + rsig_2);
 		
-		
+		ArrayList<Trajectory> orig = new ArrayList<Trajectory>();
 		//FREE -> Active -> Confined -> Active -> Anomalous
 		Trajectory combinedTrajectory = new Trajectory(2);
 		
-		AbstractSimulator simFree = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, numberOfSteps);
+		AbstractSimulator conf = new ConfinedDiffusionSimulator(diffusioncoefficient, timelag, radius_confined, 2, 200);
+		Trajectory tConf = conf.generateTrajectory();
+		tConf = SimulationUtil.addPositionNoise(tConf, rsig_1);
+		tConf.setType("confined");
+		orig.add(tConf);
+		
+		AbstractSimulator simFree = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, 330);
 		ArrayList<Trajectory> t = new ArrayList<Trajectory>();
 		Trajectory trFree = simFree.generateTrajectory();
 		trFree = SimulationUtil.addPositionNoise(trFree, rsig_1);
+		trFree.setType("normal");
+		trFree.offset(tConf.get(tConf.size()-1).x, tConf.get(tConf.size()-1).y, 0);
+		orig.add(trFree);
+		combinedTrajectory = TrajectoryUtil.concactTrajectorie(tConf, trFree);
 		
-		ActiveTransportSimulator simActive = new ActiveTransportSimulator(velocity, angularVelocity, timelag, 2, numberOfSteps);
+		
+		simFree = new FreeDiffusionSimulator(diffusioncoefficient, timelag, 2, 200);
+
+		ActiveTransportSimulator simActive = new ActiveTransportSimulator(velocity, angularVelocity, 1.51*Math.PI, timelag, 2, 200);
 		Trajectory trDirected = TrajectoryUtil.combineTrajectory(simActive.generateTrajectory(), simFree.generateTrajectory());
 		trDirected = SimulationUtil.addPositionNoise(trDirected, rsig_2);
-		combinedTrajectory = TrajectoryUtil.concactTrajectorie(trFree, trDirected);
+		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trDirected);
+		trDirected.setType("directed");
+		trDirected.offset(trFree.get(trFree.size()-1).x, trFree.get(trFree.size()-1).y, 0);
+		orig.add(trDirected);
 		
-		ConfinedDiffusionSimulator confSim = new ConfinedDiffusionSimulator(diffusioncoefficient, timelag, radius_confined, 2, numberOfSteps);
-		Trajectory trFree2 = simFree.generateTrajectory();
-		trFree2= SimulationUtil.addPositionNoise(trFree2, rsig_1);
-		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trFree2);
-		
+		AbstractSimulator simAnom = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, 200, 0.5);
+		Trajectory trAnom = simAnom.generateTrajectory();
+		trAnom = SimulationUtil.addPositionNoise(trAnom, rsig_1);
+		trAnom.setType("anom");
+		trAnom.offset(trDirected.get(trDirected.size()-1).x, trDirected.get(trDirected.size()-1).y, 0);
+		orig.add(trAnom);
+		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trAnom);
+		/*
 		Trajectory trDirected2 = TrajectoryUtil.combineTrajectory(simActive.generateTrajectory(), simFree.generateTrajectory());
 		trDirected2 = SimulationUtil.addPositionNoise(trDirected2, rsig_2);
 		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trDirected2);
 		
-		AbstractSimulator simAnom = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, 2, numberOfSteps, 0.5);
-		Trajectory trAnom = simAnom.generateTrajectory();
-		trAnom = SimulationUtil.addPositionNoise(trAnom, rsig_1);
-		combinedTrajectory = TrajectoryUtil.concactTrajectorie(combinedTrajectory, trAnom);
 		
+		*/
 	//	Chart c = VisualizationUtils.getTrajectoryChart(combinedTrajectory);
 		//VisualizationUtils.plotChart(c);
 		ExportImportTools eit = new ExportImportTools();
-		
+	
 		ArrayList<Subtrajectory> tracks = TraJClassifier_.getInstance().classifyAndSegment(combinedTrajectory, modelpath, w, 90, 10, 1);
+		for (Trajectory tr : tracks) {
+			tr.offset(2.0, 0, 0);
+		}
 		eit.exportTrajectoryDataAsCSV(tracks, "/home/thorsten/track_seg.csv");
 		showTracks(tracks);
+		
+		eit.exportTrajectoryDataAsCSV(orig, "/home/thorsten/track_orig.csv");
+		showTracks(orig);
 		/*
 		RRFClassifierRenjin rrf = new RRFClassifierRenjin(modelpath,timelag);
 		rrf.start();
@@ -477,7 +538,7 @@ public class TraJClassifier_Debug {
 		showTracks(subtracks, cls);
 	}
 	
-	public static void showTracks(ArrayList<Subtrajectory> tracks){
+	public static void showTracks(ArrayList<? extends Trajectory> tracks){
 		ArrayList<String> cls = new ArrayList<String>();
 		for(int i = 0; i < tracks.size(); i++){
 			cls.add(tracks.get(i).getType());

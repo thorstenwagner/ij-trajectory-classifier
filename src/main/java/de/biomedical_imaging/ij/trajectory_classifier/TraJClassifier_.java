@@ -383,7 +383,7 @@ public class TraJClassifier_ implements PlugIn {
 					res = dcEstim.evaluate();
 					dc = res[0];
 					rt.addValue("(FIT) D", formatter.format(dc));
-					goodness = res[4];
+					goodness = res[3];
 					
 					break;
 				case "CONFINED":
