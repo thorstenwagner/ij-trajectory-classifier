@@ -90,6 +90,7 @@ public class TraJClassifier_ implements PlugIn {
 	private boolean showID;
 	private boolean showOverviewClasses;
 	private boolean removeGlobalDrift;
+	private boolean useReducedModelConfinedMotion;
 	private ArrayList<Subtrajectory> classifiedTrajectories;
 	private ArrayList<Trajectory> tracksToClassify;
 	//private ArrayList<Trajectory> tracks 
@@ -182,6 +183,7 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addNumericField("Resample rate*", resampleRate, 0);
 			gd.addNumericField("Pixelsize (µm)**", pixelsize, 4);
 			gd.addNumericField("Framerate (FPS)", 1/timelag, 0);
+			gd.addCheckbox("Use reduced model confined motion", false);
 			gd.addCheckbox("Show IDs", showID);
 			gd.addCheckbox("Show overview classes", showOverviewClasses);
 			gd.addCheckbox("Remove global drift", false);
@@ -198,6 +200,7 @@ public class TraJClassifier_ implements PlugIn {
 					resampleRate = (int)gd.getNextNumber();
 					pixelsize = gd.getNextNumber();
 					timelag = 1/gd.getNextNumber();
+					useReducedModelConfinedMotion = gd.getNextBoolean();
 					showID = gd.getNextBoolean();
 					showOverviewClasses = gd.getNextBoolean();
 					removeGlobalDrift = gd.getNextBoolean();
@@ -215,6 +218,7 @@ public class TraJClassifier_ implements PlugIn {
 			resampleRate = (int)gd.getNextNumber();
 			pixelsize = gd.getNextNumber();
 			timelag = 1/gd.getNextNumber();
+			useReducedModelConfinedMotion = gd.getNextBoolean();
 			showID = gd.getNextBoolean();
 			showOverviewClasses = gd.getNextBoolean();
 			removeGlobalDrift = gd.getNextBoolean();
@@ -300,7 +304,7 @@ public class TraJClassifier_ implements PlugIn {
 				} else {
 					prois = VisualizationUtils
 							.generateVisualizationRoisFromTrack(tr,
-									mapTypeToColor.get(tr.getType()), showID);
+									mapTypeToColor.get(tr.getType()), showID,IJ.getImage().getCalibration().pixelWidth);
 				}
 				for (Roi r : prois) {
 					ov.add(r);
@@ -325,6 +329,7 @@ public class TraJClassifier_ implements PlugIn {
 
 				}
 			}
+			
 			IJ.getImage().setOverlay(ov);
 			IJ.getImage().updateAndRepaintWindow();
 		}
@@ -388,14 +393,21 @@ public class TraJClassifier_ implements PlugIn {
 					break;
 				case "CONFINED":
 					AbstractDiffusionCoefficientEstimator dcEst = new RegressionDiffusionCoefficientEstimator(t,1/timelag,1,3);
-					ConfinedDiffusionParametersFeature confp = new ConfinedDiffusionParametersFeature(t,timelag,dcEst);
+					ConfinedDiffusionParametersFeature confp = new ConfinedDiffusionParametersFeature(t,timelag,useReducedModelConfinedMotion,dcEst);
 					double[] p = confp.evaluate();
 					dc = p[1];
-					rt.addValue("(FIT) CONF. RADIUS", Math.sqrt(p[0]));
-					rt.addValue("(FIT) A [CONF. SHAPE]", p[2]);
-					rt.addValue("(FIT) B (CONF SHAPE)", p[3]);
-					rt.addValue("(FIT) D", formatter.format(p[1]));
-					goodness = p[4];
+					if(useReducedModelConfinedMotion){
+						rt.addValue("(FIT) CONF. RADIUS", Math.sqrt(p[0]));
+						rt.addValue("(FIT) D", formatter.format(p[1]));
+						goodness = p[2];
+					}else{
+						rt.addValue("(FIT) CONF. RADIUS", Math.sqrt(p[0]));
+						rt.addValue("(FIT) A [CONF. SHAPE]", p[2]);
+						rt.addValue("(FIT) B (CONF SHAPE)", p[3]);
+						rt.addValue("(FIT) D", formatter.format(p[1]));
+						goodness = p[4];
+					}
+					
 	
 					break;
 				case "SUBDIFFUSION":
@@ -534,6 +546,18 @@ public class TraJClassifier_ implements PlugIn {
 			parents.addValue("#POS_DIRECTED", directedPosCount);
 		}
 		
+		/*
+		 minTrackLength = gd.getNextNumber();
+			windowSizeClassification = (int) (gd.getNextNumber()/2);
+			minSegmentLength = (int)gd.getNextNumber();
+			resampleRate = (int)gd.getNextNumber();
+			pixelsize = gd.getNextNumber();
+			timelag = 1/gd.getNextNumber();
+			useReducedModelConfinedMotion = gd.getNextBoolean();
+			showID = gd.getNextBoolean();
+			showOverviewClasses = gd.getNextBoolean();
+			removeGlobalDrift = gd.getNextBoolean();
+		 */
 		
 		double[] drift = dcalc.calculateDrift(parentTrajectories);
 		ResultsTable overall = new ResultsTable();
@@ -541,7 +565,14 @@ public class TraJClassifier_ implements PlugIn {
 		overall.addValue("Mean confindence", sumConf/classifiedTrajectories.size());
 		overall.addValue("Drift x", drift[0]);
 		overall.addValue("Drift y", drift[1]);
-		overall.show("Overall Statistics");
+		overall.addValue("Window size", windowSizeClassification);
+		overall.addValue("Min. segment length", minSegmentLength);
+		overall.addValue("Resamplerate", resampleRate);
+		overall.addValue("Pixelsize", pixelsize);
+		overall.addValue("Timelag", timelag);
+		overall.addValue("Reduced conf. model", Boolean.toString(useReducedModelConfinedMotion));
+		overall.addValue("Remove global drift", Boolean.toString(removeGlobalDrift));
+		overall.show("Settings & Miscellaneous");
 		
 		
 		// show tables
@@ -762,6 +793,10 @@ public class TraJClassifier_ implements PlugIn {
 
 	public int getWindowSizeClassification() {
 		return windowSizeClassification;
+	}
+	
+	public boolean isUseReducedModelConfinedMotion(){
+		return useReducedModelConfinedMotion;
 	}
 
 	public void setTimelag(double timelag) {

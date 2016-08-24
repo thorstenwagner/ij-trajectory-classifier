@@ -75,7 +75,7 @@ public class GenerateTrainingSet {
 		//General Parameters
 		int numberOfTracks = 0;					
 		int seed = 0;
-		int MODE = MODE_TEST; // SELECT WHICH TYPE OF DATA YOU WANT TO GENERATE
+		int MODE = MODE_TRAINING; // SELECT WHICH TYPE OF DATA YOU WANT TO GENERATE
 		String prefix = "";
 		switch (MODE) {
 		case MODE_TRAINING:
@@ -119,7 +119,7 @@ public class GenerateTrainingSet {
 					for(int i = 0 ; i < numberOfTracks; i++){
 							double tracklength = (1+r.nextDouble()*20);
 							int numberOfSteps = (int)(tracklength * 1/timelag);
-							double boundedness = 1 + r.nextDouble()*80;
+							double boundedness = 1 + r.nextDouble()*20;
 							double alpha = 0.3+r.nextDouble()*0.4; // 0.1 - 0.9
 							AbstractSimulator sim = null;
 							String typestring = "";

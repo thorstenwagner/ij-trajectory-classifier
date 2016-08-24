@@ -49,6 +49,7 @@ public class VisualizationUtils {
 		for(int i = 0; i < t.getParent().size(); i++){
 			int to = t.size();
 			if(i< t.size()){
+				
 				sumx += t.get(i).x/pixelsize;
 				sumy += t.get(i).y/pixelsize;
 				p.addPoint(t.get(i).x/pixelsize, t.get(i).y/pixelsize);

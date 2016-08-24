@@ -104,10 +104,15 @@ public class TraJResultsTable extends ResultsTable {
 							
 
 						}else if(t.getType().equals("CONFINED")){
-							ConfinedDiffusionParametersFeature cfeature = new ConfinedDiffusionParametersFeature(t, timelag);
+							ConfinedDiffusionParametersFeature cfeature = new ConfinedDiffusionParametersFeature(t, timelag,TraJClassifier_.getInstance().isUseReducedModelConfinedMotion());
 							double[] res= cfeature.evaluate();
-							c = VisualizationUtils.getMSDLineWithConfinedModelChart(t, 1, t.size()/3, timelag, res[0], res[2], res[3], res[1]);
-							charts.add(c);
+							if(TraJClassifier_.getInstance().isUseReducedModelConfinedMotion()){
+								c = VisualizationUtils.getMSDLineWithConfinedModelChart(t, 1, t.size()/3, timelag, res[0], 1, 1, res[1]);
+								charts.add(c);
+							}else{
+								c = VisualizationUtils.getMSDLineWithConfinedModelChart(t, 1, t.size()/3, timelag, res[0], res[2], res[3], res[1]);
+								charts.add(c);
+							}
 						}else if(t.getType().equals("NORM. DIFFUSION")){
 							RegressionDiffusionCoefficientEstimator regest = new RegressionDiffusionCoefficientEstimator(t, 1/timelag, 1, t.size()/3);
 							double[] res =regest.evaluate();
