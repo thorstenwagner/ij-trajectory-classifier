@@ -166,9 +166,10 @@ public class TraJClassifier_ implements PlugIn {
 			resampleRate = (int) Prefs.get("trajclass.ResampleRate", 1);
 			pixelsize = Prefs.get("trajclass.pixelsize", 0.166);
 			timelag = 1.0/Prefs.get("trajclass.framerate",30);
-			showID = Prefs.getBoolean("trajclass.showID", true);
-			showOverviewClasses = Prefs.getBoolean("trajclass.showOverviewClasses", true);
-			removeGlobalDrift = Prefs.getBoolean("trajclass.removeGlobalDrift", false);
+			useReducedModelConfinedMotion = Prefs.get("trajclass.useReducedModelConfinedMotion", false);
+			showID = Prefs.get("trajclass.showID", true);
+			showOverviewClasses = Prefs.get("trajclass.showOverviewClasses", true);
+			removeGlobalDrift = Prefs.get("trajclass.removeGlobalDrift", false);
 			
 			//Show GUI
 			GenericDialog gd = new GenericDialog("TraJectory Classification ("+version+")");
@@ -179,10 +180,10 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addNumericField("Resample rate*", resampleRate, 0);
 			gd.addNumericField("Pixelsize (µm)**", pixelsize, 4);
 			gd.addNumericField("Framerate (FPS)", 1/timelag, 0);
-			gd.addCheckbox("Use reduced model confined motion", false);
+			gd.addCheckbox("Use reduced model confined motion", useReducedModelConfinedMotion);
 			gd.addCheckbox("Show IDs", showID);
 			gd.addCheckbox("Show overview classes", showOverviewClasses);
-			gd.addCheckbox("Remove global drift", false);
+			gd.addCheckbox("Remove global drift", removeGlobalDrift);
 			gd.addMessage("* The ratio of window size / resample rate have to be at least 30.");
 			gd.addMessage("** Set to zero if the imported data is already correctly scaled.");
 			gd.addHelp("http://imagej.net/TraJClassifier");
@@ -200,7 +201,8 @@ public class TraJClassifier_ implements PlugIn {
 					showID = gd.getNextBoolean();
 					showOverviewClasses = gd.getNextBoolean();
 					removeGlobalDrift = gd.getNextBoolean();
-					boolean valid = windowSizeClassification/resampleRate>=30;
+					boolean valid = (windowSizeClassification/resampleRate>=30) && (minTrackLength >= windowSizeClassification);
+					
 					return valid;
 				}
 			});
@@ -228,6 +230,7 @@ public class TraJClassifier_ implements PlugIn {
 			Prefs.set("trajclass.showID", showID);
 			Prefs.set("trajclass.showOverviewClasses", showOverviewClasses);
 			Prefs.set("trajclass.removeGlobalDrift", removeGlobalDrift);
+			Prefs.set("trajclass.useReducedModelConfinedMotion", useReducedModelConfinedMotion);
 		}
 
 		
