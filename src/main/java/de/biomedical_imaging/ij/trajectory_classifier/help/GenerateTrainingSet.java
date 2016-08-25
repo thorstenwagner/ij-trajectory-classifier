@@ -2,41 +2,18 @@ package de.biomedical_imaging.ij.trajectory_classifier.help;
 
 import java.util.ArrayList;
 
-import javax.vecmath.Point3d;
-
 import de.biomedical_imaging.traJ.ExportTools;
 import de.biomedical_imaging.traJ.Trajectory;
-import de.biomedical_imaging.traJ.TrajectoryUtil;
-import de.biomedical_imaging.traJ.features.AspectRatioFeature;
-import de.biomedical_imaging.traJ.features.Asymmetry2Feature;
-import de.biomedical_imaging.traJ.features.AsymmetryFeature;
+
 import de.biomedical_imaging.traJ.features.BoundednessFeature;
-import de.biomedical_imaging.traJ.features.EfficiencyFeature;
-import de.biomedical_imaging.traJ.features.ElongationFeature;
-import de.biomedical_imaging.traJ.features.FractalDimensionFeature;
-import de.biomedical_imaging.traJ.features.GaussianityFeauture;
-import de.biomedical_imaging.traJ.features.KurtosisFeature;
-import de.biomedical_imaging.traJ.features.MeanSquaredDisplacmentCurvature;
-import de.biomedical_imaging.traJ.features.PowerLawFeature;
-import de.biomedical_imaging.traJ.features.ShortTimeLongTimeDiffusioncoefficentRatio;
-import de.biomedical_imaging.traJ.features.ShortTimeLongTimeSCDFFeature;
-import de.biomedical_imaging.traJ.features.SkewnessFeature;
-import de.biomedical_imaging.traJ.features.SplineCurveDynamicsFeature;
-import de.biomedical_imaging.traJ.features.SplineCurveDynamicsMSDRatioFeature;
-import de.biomedical_imaging.traJ.features.SplineCurveSpatialFeature;
-import de.biomedical_imaging.traJ.features.StandardDeviationDirectionFeature;
-import de.biomedical_imaging.traJ.features.StraightnessFeature;
-import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
 import de.biomedical_imaging.traJ.simulation.AbstractSimulator;
 import de.biomedical_imaging.traJ.simulation.ActiveTransportSimulator;
-import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionScene;
-import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.AnomalousDiffusionWMSimulation;
 import de.biomedical_imaging.traJ.simulation.CentralRandomNumberGenerator;
 import de.biomedical_imaging.traJ.simulation.CombinedSimulator;
 import de.biomedical_imaging.traJ.simulation.ConfinedDiffusionSimulator;
 import de.biomedical_imaging.traJ.simulation.FreeDiffusionSimulator;
-import de.biomedical_imaging.traJ.simulation.ImmobileSphereObstacle;
+
 import de.biomedical_imaging.traJ.simulation.SimulationUtil;
 
 public class GenerateTrainingSet {

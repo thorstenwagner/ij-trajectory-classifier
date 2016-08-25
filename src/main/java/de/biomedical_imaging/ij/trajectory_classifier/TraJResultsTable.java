@@ -63,7 +63,6 @@ public class TraJResultsTable extends ResultsTable {
 	public void show(String windowTitle) {
 		// TODO Auto-generated method stub
 		super.show(windowTitle);
-		final String name = windowTitle;
 		final ResultsTable table = this;
 		
 		

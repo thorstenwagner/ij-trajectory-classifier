@@ -42,10 +42,8 @@ import java.util.Locale;
 import java.util.Set;
 
 import org.apache.commons.math3.stat.StatUtils;
-import org.junit.experimental.ParallelComputer;
 
 import de.biomedical_imaging.traJ.Trajectory;
-import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.AbstractDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.CovarianceDiffusionCoefficientEstimator;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.RegressionDiffusionCoefficientEstimator;
@@ -63,10 +61,8 @@ import de.biomedical_imaging.traJ.features.KurtosisFeature;
 import de.biomedical_imaging.traJ.features.MSDRatioFeature;
 import de.biomedical_imaging.traJ.features.MeanSpeedFeature;
 import de.biomedical_imaging.traJ.features.PowerLawFeature;
-import de.biomedical_imaging.traJ.features.ShortTimeLongTimeDiffusioncoefficentRatio;
 import de.biomedical_imaging.traJ.features.StraightnessFeature;
 import de.biomedical_imaging.traJ.features.TrappedProbabilityFeature;
-import de.biomedical_imaging.traj.math.ActiveTransportMSDLineFit;
 import ij.IJ;
 import ij.Prefs;
 import ij.WindowManager;
@@ -177,7 +173,7 @@ public class TraJClassifier_ implements PlugIn {
 			//Show GUI
 			GenericDialog gd = new GenericDialog("TraJectory Classification ("+version+")");
 		
-			gd.addSlider("Min. tracklength", 1, 1000, minTrackLength);
+			gd.addSlider("Min. tracklength", 30, 1000, minTrackLength);
 			gd.addSlider("Windowsize (positions)", 30, 1000, windowSizeClassification);
 			gd.addSlider("Min. segment length",30,1000,minSegmentLength);
 			gd.addNumericField("Resample rate*", resampleRate, 0);

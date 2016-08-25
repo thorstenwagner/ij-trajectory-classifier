@@ -127,7 +127,6 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		double[] pwrDCs = new double[N];
 		Arrays.fill(power, -1);
 		int numberOfPointsForShortTimeLongTimeRatio = 2;
-		double start= System.currentTimeMillis();
 		int cores = Runtime.getRuntime().availableProcessors();
 		ExecutorService pool = Executors.newFixedThreadPool(cores);
 		
