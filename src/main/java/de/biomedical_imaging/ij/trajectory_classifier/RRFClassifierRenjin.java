@@ -110,31 +110,27 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 	public String[] classify(ArrayList<Trajectory> tracks)  {
 		
 		int N = tracks.size();
+		
 		String[] result = new String[N];
 		double[] fd = new double[N];
-		int[] lengths = new int[N];
 		double[] power = new double[N];
 		Arrays.fill(power, -1);
-		double[] ltStRatio = new double[N]; 
 		double[] asym3 = new double[N];
 		double[] efficiency = new double[N];
 		double[] kurtosis = new double[N];
-		double[] skewness = new double[N];
 		double[] msdratio = new double[N];
 		double[] straightness = new double[N];
 		double[] trappedness = new double[N];
 		double[] gaussianity = new double[N];
 		double[] pwrDCs = new double[N];
 		Arrays.fill(power, -1);
-		int numberOfPointsForShortTimeLongTimeRatio = 2;
 		int cores = Runtime.getRuntime().availableProcessors();
 		ExecutorService pool = Executors.newFixedThreadPool(cores);
 		
 		
 		for(int i = 0; i < tracks.size(); i++){
 			Trajectory t = tracks.get(i);
-			
-			lengths[i] = t.size();
+		
 
 			
 			FractalDimensionFeature fdF = new FractalDimensionFeature(t);
@@ -161,14 +157,8 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			EfficiencyFeature eff = new EfficiencyFeature(t);
 			pool.submit(new FeatureWorker(efficiency, i,eff, EVALTYPE.FIRST));
 			
-			ShortTimeLongTimeDiffusioncoefficentRatio stltdf = new ShortTimeLongTimeDiffusioncoefficentRatio(t, numberOfPointsForShortTimeLongTimeRatio);
-			pool.submit(new FeatureWorker(ltStRatio, i,stltdf, EVALTYPE.FIRST));
-			
 			KurtosisFeature kurtf = new KurtosisFeature(t);
 			pool.submit(new FeatureWorker(kurtosis, i,kurtf, EVALTYPE.FIRST));
-			
-			SkewnessFeature skew = new SkewnessFeature(t);
-			pool.submit(new FeatureWorker(skewness, i,skew, EVALTYPE.FIRST));
 
 			MSDRatioFeature msdr = new MSDRatioFeature(t, 1,5);
 			pool.submit(new FeatureWorker(msdratio, i,msdr, EVALTYPE.FIRST));
@@ -190,27 +180,34 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 			} catch (InterruptedException e) {
 			  e.printStackTrace();
 			}
-
+		if(false){
+			System.out.println("FD " + fd[0]);
+			System.out.println("Power " + power[0]);
+			System.out.println("asymmetry3 " + asym3[0]);
+			System.out.println("efficiency " + efficiency[0]);
+			System.out.println("kurtosis " + kurtosis[0]);
+			System.out.println("msdratio " + msdratio[0]);
+			System.out.println("straightness " + straightness[0]);
+			System.out.println("trappedness " + trappedness[0]);
+			System.out.println("gaussianity " + gaussianity[0]);
+		}
 		try {
 		
 			engine.put("fd",fd);
-			engine.put("lengths",lengths);
 			engine.put("power", power);
-			engine.put("LtStRatio", ltStRatio);
 			engine.put("asymmetry3", asym3);
 			engine.put("efficiency", efficiency);
 			engine.put("kurtosis",kurtosis);
-			engine.put("skewness", skewness);
 			engine.put("msdratio", msdratio);
 			engine.put("straightness", straightness);
 			engine.put("trappedness", trappedness);
 			engine.put("gaussianity", gaussianity);
 			
-			engine.eval("data<-data.frame(LENGTHS=lengths,FD=fd,"
+			engine.eval("data<-data.frame(FD=fd,"
 					+ "POWER=power,"
 					+ "MSD.R=msdratio,ASYM3=asymmetry3,EFFICENCY=efficiency, KURT=kurtosis,"
-					+ "SKEW=skewness,STRAIGHTNESS=straightness, "
-					+ "TRAPPED=trappedness,GAUSS=gaussianity,LTST.RATIO=LtStRatio)");
+					+ "STRAIGHTNESS=straightness,"
+					+ "TRAPPED=trappedness,GAUSS=gaussianity)");
 
 			engine.eval("features.predict <- predict(model,data,type=\"prob\")");
 			engine.eval("fprob<-features.predict");
@@ -239,23 +236,6 @@ public class RRFClassifierRenjin extends AbstractClassifier  {
 		}
 		catch  (EvalException e){
 			e.printStackTrace();
-			IJ.log("BAD!");
-			/*
-			try {
-				
-				ExportImportTools eit = new ExportImportTools();
-				ArrayList<Trajectory> help = new ArrayList<Trajectory>();
-				help.add(tracks.get(42));
-				eit.exportTrajectoryDataAsCSV(help, "/home/thorsten/bad_track.csv");
-				
-				engine.eval("save(fprob,file=\"/home/thorsten/bad_data.RData\")");
-				engine.eval("save(fprob,file=\"/home/thorsten/bad_fprob.RData\")");
-				
-			} catch (ScriptException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-			*/
 		}
 		
 		return result;

@@ -44,14 +44,20 @@ import java.util.List;
 import java.util.ArrayList;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.math.stat.descriptive.rank.Max;
+import org.apache.commons.math.stat.descriptive.rank.Median;
+import org.apache.commons.math.stat.descriptive.rank.Min;
 import org.apache.commons.math3.stat.StatUtils;
 import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.knowm.xchart.Chart;
 import org.knowm.xchart.Series;
 import org.knowm.xchart.SeriesMarker;
 import org.knowm.xchart.SwingWrapper;
 import org.renjin.gnur.api.R_ftp_http;
 
+import de.biomedical_imaging.ij.trajectory_classifier.help.StalledSimulator;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.VisualizationUtils;
@@ -88,11 +94,53 @@ import de.biomedical_imaging.traJ.simulation.SimulationUtil;
 public class TraJClassifier_Debug {
 
 	public static void main(String[] args) {
-		
+		CentralRandomNumberGenerator.getInstance().setSeed(10);
+		CentralRandomNumberGenerator rand = CentralRandomNumberGenerator.getInstance();
 		TraJClassifier_Debug db = new TraJClassifier_Debug();
-		db.analyseConfidence();
+		Trajectory t = new Trajectory(2);
+		for(int i = 0; i < 101; i++){
+			double x = 0.0;
+			if(rand.nextDouble() > 0.7){
+				System.out.print("!");
+				x = rand.nextDouble();
+			}
+			t.add(x, 320.0, 0.0);
+		}
 		
 	
+		String modelpath="";
+		try {
+			modelpath= db.ExportResource("/randomForestModel.RData");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		RRFClassifierRenjin c = new RRFClassifierRenjin(modelpath, 1.0/10);
+		c.start();
+		ArrayList<Trajectory> hlp = new ArrayList<Trajectory>();
+		hlp.add(t);
+		String[] cls = c.classify(hlp);
+		System.out.println("Class " + cls[0]);
+		//db.analyseConfidence();
+		/*
+		AbstractSimulator sim =  new StalledSimulator(60, 1);//new AnomalousDiffusionWMSimulation(1, 1, 2, 2000, 0.3);
+		double[] val = new double[1000];
+		for(int i = 0; i < val.length; i++){
+			Trajectory t = sim.generateTrajectory();
+		//	t = t.subList(0, 60);
+			PowerLawFeature pwf = new PowerLawFeature(t, 1, 1, t.size()/3);
+			val[i] = pwf.evaluate()[0];
+		}
+		Mean m = new Mean();
+		StandardDeviation sd = new StandardDeviation();
+		Median med = new Median();
+		Max max = new Max();
+		Min min = new Min();
+		Percentile per = new Percentile();
+		double perc90 = per.evaluate(val, 95);
+		double perc10 = per.evaluate(val, 5);
+		System.out.println("Mean: " + m.evaluate(val) + " SD: " + sd.evaluate(val) + " Median: " + med.evaluate(val)+ " Min: " + min.evaluate(val) + " Max: " + max.evaluate(val) + " Perc: " + perc10 + " < alpha <" + perc90);
+		*/
 	}
 	
 	public void analyseConfidence(){

@@ -37,7 +37,8 @@ public class GenerateTrainingSet {
 		FREE,
 	    ANOMALOUS,
 	    CONFINED,
-	    ACTIVE
+	    ACTIVE,
+	    IMMOBILE
 	}
 	
 	private static CentralRandomNumberGenerator r;
@@ -52,7 +53,7 @@ public class GenerateTrainingSet {
 		//General Parameters
 		int numberOfTracks = 0;					
 		int seed = 0;
-		int MODE = MODE_TRAINING; // SELECT WHICH TYPE OF DATA YOU WANT TO GENERATE
+		int MODE = MODE_TEST; // SELECT WHICH TYPE OF DATA YOU WANT TO GENERATE
 		String prefix = "";
 		switch (MODE) {
 		case MODE_TRAINING:
@@ -128,6 +129,8 @@ public class GenerateTrainingSet {
 								sim = new AnomalousDiffusionWMSimulation(diffusioncoefficient, timelag, dimension, 2000, alpha);
 								sigmaPosNoise = Math.sqrt(diffusioncoefficient*timelag)/diffusionToNoiseRatio;
 								break;
+							case IMMOBILE:
+								sim = new StalledSimulator(numberOfSteps, 1);
 			
 							default:
 								break;
@@ -138,9 +141,10 @@ public class GenerateTrainingSet {
 							}
 							
 							
+							if(type!=SIM_TYPE.IMMOBILE){
+								t = SimulationUtil.addPositionNoise(t, sigmaPosNoise);
+							}
 							
-							t = SimulationUtil.addPositionNoise(t, sigmaPosNoise);
-					
 							t.setType(typestring);
 							trajectorys.add(t);
 							tCounter++;

@@ -24,6 +24,8 @@ SOFTWARE.
 
 package de.biomedical_imaging.ij.trajectory_classifier;
 
+import ij.IJ;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -36,13 +38,14 @@ import de.biomedical_imaging.traJ.TrajectoryUtil;
 public class WeightedWindowedClassificationProcess {
 	
 	private double[] posConfidence =null;
+	private double numberOmittedSegments =0;
 	/**
 	 * 
 	 * @param t Trajectory to be classified
 	 * @param c Classifier
 	 * @param n Determines the window size w = 2*n + 1
 	 * @param rate Resampling rate (1=no resampling)
-	 * @return
+	 * @return An array with the class for each position.
 	 */
 	public String[] windowedClassification(Trajectory t, AbstractClassifier c, int n, int rate){
 		int windowsize = 2*n+1;
@@ -56,10 +59,13 @@ public class WeightedWindowedClassificationProcess {
 			}
 			tracks.add(sub);
 		}
-		
 		String[] res = c.classify(tracks);
-
 		double[] confidence = c.getConfindence();
+		for(int i = 0; i < res.length; i++){
+			if(res[i]==null){
+				return null;
+			}
+		}
 
 		String[] types = applyWeightening(res, confidence, n, t.size());
 		return types;
@@ -116,9 +122,14 @@ public class WeightedWindowedClassificationProcess {
 					for(int j = i; j < i+2*n+1;j++){
 						int typ = mapTypeToInt.get(res[i]);
 
-
+						try{
 						weightes.get(j)[typ]=weightes.get(j)[typ]+confidence[i];
 						Nvotes.get(j)[typ]=Nvotes.get(j)[typ]+1;
+						}
+						catch(Exception e){
+							
+							IJ.log("Res: " + res[i] + " j: " + j + " i: " + i + " weigthes size " + weightes.size());
+						}
 					}
 				}
 

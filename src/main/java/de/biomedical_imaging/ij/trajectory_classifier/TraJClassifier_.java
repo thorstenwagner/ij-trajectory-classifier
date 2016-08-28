@@ -42,6 +42,7 @@ import java.util.Locale;
 import java.util.Set;
 
 import org.apache.commons.math3.stat.StatUtils;
+import org.omg.CORBA.OMGVMCID;
 
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.DiffusionCoefficientEstimator.AbstractDiffusionCoefficientEstimator;
@@ -87,7 +88,8 @@ public class TraJClassifier_ implements PlugIn {
 	private boolean showOverviewClasses;
 	private boolean removeGlobalDrift;
 	private boolean useReducedModelConfinedMotion;
-	private ArrayList<Subtrajectory> classifiedTrajectories;
+	private int ommittedTrajectories;
+	private ArrayList<Subtrajectory> classifiedSegments;
 	private ArrayList<Trajectory> tracksToClassify;
 	//private ArrayList<Trajectory> tracks 
 	private static TraJClassifier_ instance;
@@ -101,6 +103,7 @@ public class TraJClassifier_ implements PlugIn {
 		timelag=1.0/30;
 		resampleRate=1;
 		showID = true;
+		ommittedTrajectories=0;
 		instance = this;
 	}
 	
@@ -244,12 +247,30 @@ public class TraJClassifier_ implements PlugIn {
 		}
 		
 		/*
-		 * Classification, Segmentation & Visualization
+		 * Trajectories which to often change its position are not suitable for the classifier. At least for 50% percent
+		 * of the trajectories, the position have to change.
 		 */
 		
+		for(int i = 0; i < tracksToClassify.size(); i++){
+			Trajectory t = tracksToClassify.get(i);
+			int changesCounter=0;
+			for(int j = 1; j < t.size(); j++){
+				if(t.get(j).distance(t.get(j-1)) > Math.pow(10,-12)){
+					changesCounter++;
+				}
+			}
+			if(1.0*changesCounter/t.size() < 0.5){
+				tracksToClassify.remove(i);
+				ommittedTrajectories++;
+				i--;
+			}
+		}
 		
 		
-		
+	
+		/*
+		 * Classification, Segmentation & Visualization
+		 */
 
 		HashMap<String, Color> mapTypeToColor = new HashMap<String, Color>();
 		mapTypeToColor.put("DIRECTED/ACTIVE", Color.MAGENTA);
@@ -281,17 +302,17 @@ public class TraJClassifier_ implements PlugIn {
 		 * Classification and segmentation
 		 */
 		
-		classifiedTrajectories = classifyAndSegment(parentTrajectories, modelpath, windowSizeClassification, minSegmentLength, 10, resampleRate);
-		
-		
+		classifiedSegments = classifyAndSegment(parentTrajectories, modelpath, windowSizeClassification, minSegmentLength, 10, resampleRate);
+
+
 		/*
 		 * Visualization 
 		 */
 		if (visualize) {
 			// Trajectories
 			Overlay ov = new Overlay();
-			for (int i = 0; i < classifiedTrajectories.size(); i++) {
-				Subtrajectory tr = classifiedTrajectories.get(i);
+			for (int i = 0; i < classifiedSegments.size(); i++) {
+				Subtrajectory tr = classifiedSegments.get(i);
 
 				ArrayList<Roi> prois = null;
 				if (pixelsize > 0.000001) {
@@ -344,13 +365,17 @@ public class TraJClassifier_ implements PlugIn {
 		rtables.put("NORM. DIFFUSION", new TraJResultsTable());
 		rtables.put("SUBDIFFUSION", new TraJResultsTable());
 		rtables.put("CONFINED", new TraJResultsTable());
+
 		double sumConf = 0;
-		for (int i = 0; i < classifiedTrajectories.size(); i++) {
-				IJ.showProgress(i, classifiedTrajectories.size());
-				Subtrajectory t = classifiedTrajectories.get(i);
+		for (int i = 0; i < classifiedSegments.size(); i++) {
+				IJ.showProgress(i, classifiedSegments.size());
+				Subtrajectory t = classifiedSegments.get(i);
 				TraJResultsTable rt = rtables.get(t.getType());
 				if(rt==null){
 					IJ.log("Type: " + t.getType());
+					ExportImportTools eit = new ExportImportTools();
+					ArrayList<Trajectory> hlp = new ArrayList<Trajectory>();
+					eit.exportTrajectoryDataAsCSV(hlp, "/home/thorsten/bad.csv");
 					IJ.log(t.toString());
 					
 				}
@@ -512,7 +537,7 @@ public class TraJClassifier_ implements PlugIn {
 			int confPosCount=0;
 			int confSegCount=0;
 
-			ArrayList<Subtrajectory> sameParent = Subtrajectory.getTracksWithSameParant(classifiedTrajectories, t.getID());
+			ArrayList<Subtrajectory> sameParent = Subtrajectory.getTracksWithSameParant(classifiedSegments, t.getID());
 			for (Subtrajectory sub : sameParent) {
 				switch (sub.getType()) {
 				case "DIRECTED/ACTIVE":
@@ -561,9 +586,10 @@ public class TraJClassifier_ implements PlugIn {
 		double[] drift = dcalc.calculateDrift(parentTrajectories);
 		ResultsTable overall = new ResultsTable();
 		overall.incrementCounter();
-		overall.addValue("Mean confindence", sumConf/classifiedTrajectories.size());
+		overall.addValue("Mean confindence", sumConf/classifiedSegments.size());
 		overall.addValue("Drift x", drift[0]);
 		overall.addValue("Drift y", drift[1]);
+		overall.addValue("Omitted segments", ommittedTrajectories);
 		overall.addValue("Min. track length", minTrackLength);
 		overall.addValue("Window size", windowSizeClassification*2);
 		overall.addValue("Min. segment length", minSegmentLength);
@@ -572,6 +598,7 @@ public class TraJClassifier_ implements PlugIn {
 		overall.addValue("Framerate", 1/timelag);
 		overall.addValue("Reduced conf. model", Boolean.toString(useReducedModelConfinedMotion));
 		overall.addValue("Remove global drift", Boolean.toString(removeGlobalDrift));
+		
 		overall.show("Settings & Miscellaneous");
 		
 		
@@ -603,31 +630,32 @@ public class TraJClassifier_ implements PlugIn {
 			j++;
 			IJ.showProgress(j, tracksToClassify.size());
 			Trajectory mTrack = track;
-	
+
 			String[] classes = wcp.windowedClassification(mTrack, rrf, windowSizeClassification,resampleRate);
-			double[] classConfidence = wcp.getPositionConfidence();
-			//Moving mode
-			classes = movingMode(classes, modeFilterLength);
-			double sumConf = 0;
-			int Nconf = 0;
-			Subtrajectory tr = new Subtrajectory(track,2);
 			
-			tr.setID(subidcounter);
-			subidcounter++;
-			tr.add(track.get(0).x, track.get(0).y, 0);
-			sumConf += classConfidence[0];
-			Nconf++;
-			String prevCls = classes[0];
-			int start = track.getRelativeStartTimepoint();
-			tr.setRelativStartTimepoint(start);
-			tr.setType(prevCls);
-			
-			for(int i = 1; i < classes.length; i++){
-				if(prevCls == classes[i]){
-					tr.add(track.get(i).x, track.get(i).y,0);
-					sumConf += classConfidence[i];
-					Nconf++;
-				}else{;
+				double[] classConfidence = wcp.getPositionConfidence();
+				//Moving mode
+				classes = movingMode(classes, modeFilterLength);
+				double sumConf = 0;
+				int Nconf = 0;
+				Subtrajectory tr = new Subtrajectory(track,2);
+
+				tr.setID(subidcounter);
+				subidcounter++;
+				tr.add(track.get(0).x, track.get(0).y, 0);
+				sumConf += classConfidence[0];
+				Nconf++;
+				String prevCls = classes[0];
+				int start = track.getRelativeStartTimepoint();
+				tr.setRelativStartTimepoint(start);
+				tr.setType(prevCls);
+
+				for(int i = 1; i < classes.length; i++){
+					if(prevCls == classes[i]){
+						tr.add(track.get(i).x, track.get(i).y,0);
+						sumConf += classConfidence[i];
+						Nconf++;
+					}else{;
 					tr.setConfidence(sumConf/Nconf);
 					classified.add(tr);
 					tr = new Subtrajectory(track,2);
@@ -639,12 +667,14 @@ public class TraJClassifier_ implements PlugIn {
 					Nconf = 1;
 					prevCls = classes[i];
 					tr.setType(prevCls);
+					}
 				}
-			}
-			tr.setConfidence(sumConf/Nconf);
-			classified.add(tr);
-			sumConf = 0;
-			Nconf = 0;
+				tr.setConfidence(sumConf/Nconf);
+				classified.add(tr);
+				sumConf = 0;
+				Nconf = 0;
+			
+			
 		}
 		rrf.stop();
 		
@@ -712,7 +742,7 @@ public class TraJClassifier_ implements PlugIn {
 	}
 	
 	public ArrayList<Subtrajectory> getClassifiedTrajectories(){
-		return classifiedTrajectories;
+		return classifiedSegments;
 	}
 	
 	public ArrayList<Trajectory> getParentTrajectories(){
