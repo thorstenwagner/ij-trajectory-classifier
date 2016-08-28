@@ -57,7 +57,6 @@ import org.knowm.xchart.SeriesMarker;
 import org.knowm.xchart.SwingWrapper;
 import org.renjin.gnur.api.R_ftp_http;
 
-import de.biomedical_imaging.ij.trajectory_classifier.help.StalledSimulator;
 import de.biomedical_imaging.traJ.Trajectory;
 import de.biomedical_imaging.traJ.TrajectoryUtil;
 import de.biomedical_imaging.traJ.VisualizationUtils;
