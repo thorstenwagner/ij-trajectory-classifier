@@ -23,14 +23,15 @@ public class GenerateTrainingSet {
 	 *  There are 4 different diffusion modes:
 	 *   - Free diffusion
 	 *   - Subdiffusion
-	 *   - Confined diffusion (Radius is set to 5µm)
-	 *   - Active transport + diffusion
+	 *   - Confined diffusion 
+	 *   - Directed motion
 	 *  
 	 *  For each trajectory:
 	 *  The signal to noise ratio is randomly choosen between 1 and 20
-	 *  For confined diffusion trajectories, the boundedness is choosen randomly between 1 and 16
-	 *  For subdiffusion trajectories, alpha is choosen randomly between 0.9 and 0.1
-	 *  For active transport + diffusion, the ratio between active transport and diffusion is randomly choosen between 1 and 30.
+	 *  For confined diffusion trajectories, the boundedness is choosen randomly between 1 and 8. W
+	 	with the given boundedness value a confinement radius is derived.
+	 *  For subdiffusion trajectories, alpha is choosen randomly between 0.7 and 0.3
+	 *  For directed motion, the ratio between active transport and diffusion is randomly choosen between 1 and 18.
 	 *  
 	 */
 	enum SIM_TYPE {
