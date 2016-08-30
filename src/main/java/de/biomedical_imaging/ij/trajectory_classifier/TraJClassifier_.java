@@ -26,6 +26,8 @@ package de.biomedical_imaging.ij.trajectory_classifier;
 import java.awt.AWTEvent;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.font.FontRenderContext;
+import java.awt.geom.AffineTransform;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
@@ -177,9 +179,9 @@ public class TraJClassifier_ implements PlugIn {
 			//Show GUI
 			GenericDialog gd = new GenericDialog("TraJectory Classification ("+version+")");
 		
-			gd.addSlider("Min. tracklength", 30, 1000, minTrackLength);
-			gd.addSlider("Windowsize (positions)", 30, 1000, windowSizeClassification);
-			gd.addSlider("Min. segment length",30,1000,minSegmentLength);
+			gd.addSlider("Min. tracklength", 10, 1000, minTrackLength);
+			gd.addSlider("Windowsize (positions)", 10, 1000, windowSizeClassification);
+			gd.addSlider("Min. segment length",10,1000,minSegmentLength);
 			gd.addNumericField("Resample rate*", resampleRate, 0);
 			gd.addNumericField("Pixelsize (µm)**", pixelsize, 4);
 			gd.addNumericField("Framerate (FPS)", 1/timelag, 0);
@@ -204,7 +206,9 @@ public class TraJClassifier_ implements PlugIn {
 					showID = gd.getNextBoolean();
 					showOverviewClasses = gd.getNextBoolean();
 					removeGlobalDrift = gd.getNextBoolean();
-					boolean valid = (windowSizeClassification/resampleRate>=30) && (minTrackLength >= windowSizeClassification);
+					boolean valid = (resampleRate == 1 || windowSizeClassification/resampleRate>=30) && 
+							(minTrackLength >= windowSizeClassification) &&
+							(minTrackLength>=10) && (minSegmentLength>=10) && (windowSizeClassification>=10);
 					
 					return valid;
 				}
@@ -337,8 +341,19 @@ public class TraJClassifier_ implements PlugIn {
 
 				Iterator<String> it = classes.iterator();
 				int y = 5;
-				TextRoi.setFont("TimesRoman", 7, Font.PLAIN);
-
+				
+				float fsize = 20;
+				AffineTransform affinetransform = new AffineTransform();     
+				FontRenderContext frc = new FontRenderContext(affinetransform,true,true); 
+				int width = (int)IJ.getImage().getProcessor().getFont().getStringBounds("Norm. Diffusion", frc).getWidth();
+				Font f = IJ.getImage().getProcessor().getFont();
+				while(1.0*width/IJ.getImage().getWidth() > 0.08){
+					fsize--;
+					f = f.deriveFont(fsize);
+					width = (int)f.getStringBounds("Norm. Diffusion", frc).getWidth();
+				}
+				
+				TextRoi.setFont("TimesRoman", (int)fsize, Font.PLAIN);
 				while (it.hasNext()) {
 					String type = it.next();
 					TextRoi troi = new TextRoi(5, y, type);
