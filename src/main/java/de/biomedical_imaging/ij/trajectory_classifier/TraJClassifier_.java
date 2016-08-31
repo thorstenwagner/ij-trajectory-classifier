@@ -161,7 +161,9 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * GUI
 		 */
-		String version = getClass().getPackage().getImplementationVersion();
+		
+		String classifierVersion = getClass().getPackage().getImplementationVersion();
+		
 		if(!arg.contains("NOGUI")){
 			//Load previous settings
 			
@@ -177,7 +179,7 @@ public class TraJClassifier_ implements PlugIn {
 			removeGlobalDrift = Prefs.get("trajclass.removeGlobalDrift", false);
 			
 			//Show GUI
-			GenericDialog gd = new GenericDialog("TraJectory Classification ("+version+")");
+			GenericDialog gd = new GenericDialog("TraJectory Classification ("+classifierVersion+")");
 		
 			gd.addSlider("Min. tracklength", 10, 1000, minTrackLength);
 			gd.addSlider("Windowsize (positions)", 10, 1000, windowSizeClassification);
@@ -585,19 +587,8 @@ public class TraJClassifier_ implements PlugIn {
 			parents.addValue("#POS_DIRECTED", directedPosCount);
 		}
 		
-		/*
-		 minTrackLength = gd.getNextNumber();
-			windowSizeClassification = (int) (gd.getNextNumber()/2);
-			minSegmentLength = (int)gd.getNextNumber();
-			resampleRate = (int)gd.getNextNumber();
-			pixelsize = gd.getNextNumber();
-			timelag = 1/gd.getNextNumber();
-			useReducedModelConfinedMotion = gd.getNextBoolean();
-			showID = gd.getNextBoolean();
-			showOverviewClasses = gd.getNextBoolean();
-			removeGlobalDrift = gd.getNextBoolean();
-		 */
 		
+		String trajVersion = Trajectory.class.getPackage().getImplementationVersion();
 		double[] drift = dcalc.calculateDrift(parentTrajectories);
 		ResultsTable overall = new ResultsTable();
 		overall.incrementCounter();
@@ -613,7 +604,8 @@ public class TraJClassifier_ implements PlugIn {
 		overall.addValue("Framerate", 1/timelag);
 		overall.addValue("Reduced conf. model", Boolean.toString(useReducedModelConfinedMotion));
 		overall.addValue("Remove global drift", Boolean.toString(removeGlobalDrift));
-		overall.addValue("TraJclassifier version", ""+version);
+		overall.addValue("TraJclassifier version", classifierVersion);
+		overall.addValue("TraJ library version", trajVersion);
 		overall.addValue("TrackMate file:", documentPath);
 		
 		overall.show("Settings & Miscellaneous");
