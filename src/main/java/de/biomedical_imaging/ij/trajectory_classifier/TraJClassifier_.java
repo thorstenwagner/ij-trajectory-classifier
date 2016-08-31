@@ -161,10 +161,10 @@ public class TraJClassifier_ implements PlugIn {
 		/*
 		 * GUI
 		 */
-		
+		String version = getClass().getPackage().getImplementationVersion();
 		if(!arg.contains("NOGUI")){
 			//Load previous settings
-			String version = getClass().getPackage().getImplementationVersion();
+			
 			minTrackLength = Prefs.get("trajclass.minTrackLength", 160);
 			windowSizeClassification = (int) Prefs.get("trajclass.windowSize", 60);
 			minSegmentLength = (int) Prefs.get("trajclass.minSegmentLength", 60);
@@ -613,7 +613,8 @@ public class TraJClassifier_ implements PlugIn {
 		overall.addValue("Framerate", 1/timelag);
 		overall.addValue("Reduced conf. model", Boolean.toString(useReducedModelConfinedMotion));
 		overall.addValue("Remove global drift", Boolean.toString(removeGlobalDrift));
-		overall.addValue("TrackMate File:", documentPath);
+		overall.addValue("TraJclassifier version", ""+version);
+		overall.addValue("TrackMate file:", documentPath);
 		
 		overall.show("Settings & Miscellaneous");
 		
