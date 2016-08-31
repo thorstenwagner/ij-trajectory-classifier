@@ -96,7 +96,7 @@ public class TraJClassifier_ implements PlugIn {
 	//private ArrayList<Trajectory> tracks 
 	private static TraJClassifier_ instance;
 	ArrayList<Trajectory> parentTrajectories;
-	
+	String documentPath;
 	public TraJClassifier_() {
 		minTrackLength=160;
 		windowSizeClassification=60;
@@ -134,12 +134,12 @@ public class TraJClassifier_ implements PlugIn {
 		 */
 		if(!arg.contains("DEBUG")){
 			OpenDialog open = new OpenDialog("Choose the TrackMate xml file");
-			String filepath = open.getPath();
-			if(filepath==null){
+			documentPath = open.getPath();
+			if(documentPath==null){
 				return;
 			}
 			TrackMateImporter tMateImport = new TrackMateImporter();
-			tracksToClassify = tMateImport.importTrackMateXML(filepath);
+			tracksToClassify = tMateImport.importTrackMateXML(documentPath);
 		}
 		int maxNumberOfPositions = 0;
 		for(int i = 0; i < tracksToClassify.size(); i++){
@@ -613,6 +613,7 @@ public class TraJClassifier_ implements PlugIn {
 		overall.addValue("Framerate", 1/timelag);
 		overall.addValue("Reduced conf. model", Boolean.toString(useReducedModelConfinedMotion));
 		overall.addValue("Remove global drift", Boolean.toString(removeGlobalDrift));
+		overall.addValue("TrackMate File:", documentPath);
 		
 		overall.show("Settings & Miscellaneous");
 		
