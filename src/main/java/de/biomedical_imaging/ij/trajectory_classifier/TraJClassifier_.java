@@ -188,9 +188,9 @@ public class TraJClassifier_ implements PlugIn {
 			gd.addNumericField("Pixelsize (µm)**", pixelsize, 4);
 			gd.addNumericField("Framerate (FPS)", 1/timelag, 0);
 			gd.addCheckbox("Use reduced model confined motion", useReducedModelConfinedMotion);
-			gd.addCheckbox("Show IDs", showID);
-			gd.addCheckbox("Show overview classes", showOverviewClasses);
-			gd.addCheckbox("Remove global drift", removeGlobalDrift);
+			gd.addCheckbox("Show_IDs", showID);
+			gd.addCheckbox("Show_overview classes", showOverviewClasses);
+			gd.addCheckbox("Remove_global_drift", removeGlobalDrift);
 			gd.addMessage("* The ratio of window size / resample rate have to be at least 30.");
 			gd.addMessage("** Set to zero if the imported data is already correctly scaled.");
 			gd.addHelp("http://imagej.net/TraJClassifier");
