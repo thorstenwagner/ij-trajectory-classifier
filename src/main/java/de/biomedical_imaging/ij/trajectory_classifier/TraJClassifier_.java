@@ -181,9 +181,9 @@ public class TraJClassifier_ implements PlugIn {
 			//Show GUI
 			GenericDialog gd = new GenericDialog("TraJectory Classification ("+classifierVersion+")");
 		
-			gd.addSlider("Min. tracklength", 10, 1000, minTrackLength);
-			gd.addSlider("Windowsize (positions)", 10, 1000, windowSizeClassification);
-			gd.addSlider("Min. segment length",10,1000,minSegmentLength);
+			gd.addSlider("Min._track_length", 10, 1000, minTrackLength);
+			gd.addSlider("Window_size (positions)", 10, 1000, windowSizeClassification);
+			gd.addSlider("Min._segment_length",10,1000,minSegmentLength);
 			gd.addNumericField("Resample rate*", resampleRate, 0);
 			gd.addNumericField("Pixelsize (µm)**", pixelsize, 4);
 			gd.addNumericField("Framerate (FPS)", 1/timelag, 0);
